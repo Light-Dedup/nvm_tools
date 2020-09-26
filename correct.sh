@@ -4,9 +4,10 @@ if [ ! $3 ]; then
 	exit
 fi
 TESTDIR=/home/searchstar/test
+rm $TESTDIR/test*
 TMPFILE=$(mktemp)
 for i in $(seq 1 $1); do
-	fio -filename=$TESTDIR/test$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=4K -runtime=10 -thread -numjobs=1 -size=$2 -name=randrw --dedupe_percentage=$3 -group_reporting >> $TMPFILE &
+	fio -filename=$TESTDIR/test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=4K -runtime=10 -thread -numjobs=1 -size=$2 -name=randrw --dedupe_percentage=$3 -group_reporting >> $TMPFILE &
 done
 
 wait
@@ -23,6 +24,6 @@ echo MiB/s
 
 rm $TMPFILE $TMPOUT
 for i in $(seq 1 $1); do
-	diff $TESTDIR/test$i ./pmem/test$i
+	cmp $TESTDIR/test$i ./pmem/test$i
 done
 
