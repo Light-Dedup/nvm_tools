@@ -17,7 +17,7 @@ done
 wait
 
 if [ ! -r get_sum ]; then
-	g++ get_sum.cpp -o get_sum
+	sudo g++ get_sum.cpp -o get_sum
 fi
 TMPOUT=$(mktemp)
 grep WRITE: $TMPFILE > $TMPOUT
