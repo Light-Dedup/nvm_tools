@@ -13,7 +13,7 @@ cd /mnt/pmem
 
 TMPFILE=$(mktemp)
 for i in $(seq 1 $1); do
-	sudo fio -filename=./test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=4K -runtime=10 -thread -numjobs=1 -size=$2 -name=randrw --dedupe_percentage=80 -group_reporting >> $TMPFILE &
+	sudo fio -filename=./test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=4K -thread -numjobs=1 -size=$2 -name=randrw --dedupe_percentage=80 -group_reporting >> $TMPFILE &
 done
 
 wait
