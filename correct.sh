@@ -1,6 +1,6 @@
 set -e
-if [ ! $3 ]; then
-	echo Usage: $0 num_of_threads size duplicate_percentage
+if [ ! $4 ]; then
+	echo Usage: $0 num_of_threads block_size size duplicate_percentage
 	exit
 fi
 if [ -r pmem/test1 ]; then
@@ -11,7 +11,7 @@ TESTDIR=/home/searchstar/test
 rm -f $TESTDIR/test*
 TMPFILE=$(mktemp)
 for i in $(seq 1 $1); do
-	fio -filename=$TESTDIR/test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=4K -thread -numjobs=1 -size=$2 -name=randrw --dedupe_percentage=$3 -group_reporting >> $TMPFILE &
+	fio -filename=$TESTDIR/test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=$2 -thread -numjobs=1 -size=$3 -name=randrw --dedupe_percentage=$4 -group_reporting >> $TMPFILE &
 done
 
 wait
