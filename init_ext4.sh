@@ -1,4 +1,4 @@
 umount /mnt/pmem
-mkfs -t ext4 /dev/pmem0
+mkfs -t ext4 -F /dev/pmem0
 mount -t ext4 /dev/pmem0 /mnt/pmem -o dax
 
