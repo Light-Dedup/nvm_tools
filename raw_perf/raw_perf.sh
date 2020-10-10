@@ -1,6 +1,14 @@
+# $1: The number of fio threads
+# $2: The init shell script
+
+if [ ! $2 ]; then
+	echo Usage: $0 threads path_to_init_shell_script
+	exit
+fi
+
 cd ..
-cd /mnt
-sudo bash init_ext4.sh
+cd $(dirname $2)
+sudo bash $2
 cd -
 
 cd /mnt/pmem
