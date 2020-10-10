@@ -6,7 +6,7 @@ if [ ! $2 ]; then
 	exit
 fi
 
-cd ..
+cd ../..
 cd $(dirname $2)
 sudo bash $2
 cd -
