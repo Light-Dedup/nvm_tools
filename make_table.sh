@@ -3,7 +3,7 @@ if [ ! $3 ]; then
 	exit
 fi
 dup_arr=( $(seq 0 $3 100) )
-echo dup_rate numjobs throughput(MiB/s)
+echo dup_rate numjobs throughput\(MiB/s\)
 for dup in ${dup_arr[@]}; do
 	for i in $(seq 1 $1); do
 		echo -n "$dup $i "
