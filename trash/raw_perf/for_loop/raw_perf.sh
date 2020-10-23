@@ -27,7 +27,7 @@ cd -
 
 make
 echo -n Write:
-grep WRITE: $TMPFILE | sed 's/.*WRITE: bw=//g' | sed 's/iB.*//g' | ./M2G | ./get_sum | tr -d "\n"
+grep WRITE: $TMPFILE | sed 's/.*WRITE: bw=//g' | sed 's/iB.*//g' | ./toG | ./get_sum | tr -d "\n"
 echo GiB/s
 
 rm $TMPFILE
@@ -40,7 +40,7 @@ wait
 cd -
 
 echo -n Read:
-grep READ: $TMPFILE | sed 's/.*READ: bw=//g' | sed 's/iB.*//g' | ./M2G | ./get_sum | tr -d "\n"
+grep READ: $TMPFILE | sed 's/.*READ: bw=//g' | sed 's/iB.*//g' | ./toG | ./get_sum | tr -d "\n"
 echo GiB/s
 
 rm $TMPFILE

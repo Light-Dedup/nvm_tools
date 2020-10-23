@@ -7,23 +7,30 @@ cd ..
 sudo bash setup-pmfs.sh
 cd -
 TESTDIR=/home/searchstar/test
-rm -f $TESTDIR/test*
-TMPFILE=$(mktemp)
-for i in $(seq 1 $1); do
-	fio -filename=$TESTDIR/test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=$2 -thread -numjobs=1 -size=$3 -name=randrw --dedupe_percentage=$4 -group_reporting >> $TMPFILE &
-done
+TEST_ARG=$(mktemp)
+echo $* > $TEST_ARG
+if diff $TESTDIR/test_arg.txt $TEST_ARG; then
+	echo The last test has the same arguments, reuse it.
+	rm $TEST_ARG
+else
+	rm -f $TESTDIR/test_arg.txt $TESTDIR/test*
+	TMPFILE=$(mktemp)
+	for i in $(seq 1 $1); do
+		fio -filename=$TESTDIR/test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=$2 -thread -numjobs=1 -size=$3 -name=randrw --dedupe_percentage=$4 -group_reporting >> $TMPFILE &
+	done
+	wait
 
-wait
+	mv $TEST_ARG $TESTDIR/test_arg.txt
+	make
+	TMPOUT=$(mktemp)
+	grep WRITE: $TMPFILE > $TMPOUT
+	cat $TMPOUT
+	echo -n Total: 
+	sed 's/.*WRITE: bw=//g' $TMPOUT | sed 's/iB.*//g' | ./toG | ./get_sum | tr -d "\n"
+	echo GiB/s
+	rm $TMPFILE $TMPOUT
+fi
 
-make
-TMPOUT=$(mktemp)
-grep WRITE: $TMPFILE > $TMPOUT
-cat $TMPOUT
-echo -n Total: 
-cat $TMPOUT | sed 's/WRITE: bw=//g' | sed 's/MiB.*//g' | ./get_sum
-echo MiB/s
-
-rm $TMPFILE $TMPOUT
 sudo cp $TESTDIR/test* /mnt/pmem/
 for i in $(seq 1 $1); do
 	cmp $TESTDIR/test$i /mnt/pmem/test$i

@@ -3,11 +3,11 @@ if [ ! $3 ]; then
 	exit
 fi
 dup_arr=( $(seq 0 $3 100) )
-echo dup_rate numjobs throughput\(MiB/s\)
+echo dup_rate numjobs throughput\(GiB/s\)
 for dup in ${dup_arr[@]}; do
 	for i in $(seq 1 $1); do
 		echo -n "$dup $i "
-		bash timing_concurrent.sh $i $2 $dup | grep Total: | sed 's,Total:,,g' | sed 's,MiB/s,,g'
+		bash timing_concurrent.sh $i $2 $dup | grep Total: | sed 's,Total:,,g' | sed 's,GiB/s,,g'
 	done
 done
 

@@ -22,8 +22,8 @@ TMPOUT=$(mktemp)
 grep WRITE: $TMPFILE > $TMPOUT
 cat $TMPOUT
 echo -n Total:
-cat $TMPOUT | sed 's/WRITE: bw=//g' | sed 's/MiB.*//g' | ./get_sum
-echo MiB/s
+sed 's/.*WRITE: bw=//g' $TMPOUT | sed 's/iB.*//g' | ./toG | ./get_sum | tr -d "\n"
+echo GiB/s
 
 rm $TMPFILE $TMPOUT
 
