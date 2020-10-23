@@ -3,10 +3,9 @@ if [ ! $4 ]; then
 	echo Usage: $0 num_of_threads block_size size duplicate_percentage
 	exit
 fi
-if [ -r pmem/test1 ]; then
-	echo Please remount /mnt/pmem
-	exit
-fi
+cd ..
+sudo bash setup-pmfs.sh
+cd -
 TESTDIR=/home/searchstar/test
 rm -f $TESTDIR/test*
 TMPFILE=$(mktemp)
@@ -16,9 +15,7 @@ done
 
 wait
 
-if [ ! -r get_sum ]; then
-	sudo g++ get_sum.cpp -o get_sum
-fi
+make
 TMPOUT=$(mktemp)
 grep WRITE: $TMPFILE > $TMPOUT
 cat $TMPOUT
@@ -27,8 +24,8 @@ cat $TMPOUT | sed 's/WRITE: bw=//g' | sed 's/MiB.*//g' | ./get_sum
 echo MiB/s
 
 rm $TMPFILE $TMPOUT
-sudo cp $TESTDIR/test* ./pmem/
+sudo cp $TESTDIR/test* /mnt/pmem/
 for i in $(seq 1 $1); do
-	cmp $TESTDIR/test$i ./pmem/test$i
+	cmp $TESTDIR/test$i /mnt/pmem/test$i
 done
 
