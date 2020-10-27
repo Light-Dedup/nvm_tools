@@ -8,24 +8,16 @@ cd ..
 make
 sudo bash setup-pmfs.sh
 cd -
-cd /mnt/pmem
 
-TMPFILE=$(mktemp)
-for i in $(seq 1 $1); do
-	sudo fio -filename=./test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=4K -thread -numjobs=1 -size=$2 -name=randrw --dedupe_percentage=$3 -group_reporting >> $TMPFILE &
-done
-
-wait
-cd -
-make
 TMPOUT=$(mktemp)
-grep WRITE: $TMPFILE > $TMPOUT
-cat $TMPOUT
+sudo fio -directory=/mnt/pmem -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=$1 -size=$2 -name=randrw --dedupe_percentage=$3 -group_reporting | tee $TMPOUT
+
+make
 echo -n Total:
-sed 's/.*WRITE: bw=//g' $TMPOUT | sed 's/iB.*//g' | ./toG | ./get_sum | tr -d "\n"
+grep WRITE: $TMPOUT | sed 's/.*WRITE: bw=//g' | sed 's/iB.*//g' | ./toG | ./get_sum | tr -d "\n"
 echo GiB/s
 
-rm $TMPFILE $TMPOUT
+rm $TMPOUT
 
 #cd ..
 #sudo gcc ioctl_test.c -o ioctl_test && sudo ./ioctl_test
