@@ -9,18 +9,18 @@ cd -
 TESTDIR=/home/searchstar/test
 TEST_ARG=$(mktemp)
 echo $* > $TEST_ARG
-if diff $TESTDIR/test_arg.txt $TEST_ARG; then
+if diff $TESTDIR/last_arg.txt $TEST_ARG; then
 	echo The last test has the same arguments, reuse it.
 	rm $TEST_ARG
 else
-	rm -f $TESTDIR/test_arg.txt $TESTDIR/test*
+	rm -f $TESTDIR/last_arg.txt $TESTDIR/test*
 	TMPFILE=$(mktemp)
 	for i in $(seq 1 $1); do
 		fio -filename=$TESTDIR/test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=$2 -thread -numjobs=1 -size=$3 -name=randrw --dedupe_percentage=$4 -group_reporting >> $TMPFILE &
 	done
 	wait
 
-	mv $TEST_ARG $TESTDIR/test_arg.txt
+	mv $TEST_ARG $TESTDIR/last_arg.txt
 	make
 	TMPOUT=$(mktemp)
 	grep WRITE: $TMPFILE > $TMPOUT
