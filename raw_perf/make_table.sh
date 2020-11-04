@@ -6,7 +6,7 @@ cd ..
 make
 cd -
 sudo bash -c "echo $0 $* > /dev/kmsg"
-read_arr=( $(seq 80 $4 100) )
+read_arr=( $(seq 0 $4 100) )
 TMPOUT=$(mktemp)
 echo read_rate numjobs write\(GiB/s\) read\(GiB/s\)
 for rate in ${read_arr[@]}; do
