@@ -1,6 +1,6 @@
 set -e
-if [ ! $4 ]; then
-	echo Usage: $0 num_of_threads block_size size duplicate_percentage
+if [ ! $3 ]; then
+	echo Usage: $0 num_of_threads size duplicate_percentage
 	exit
 fi
 cd ..
@@ -16,19 +16,9 @@ else
 	rm -f $TESTDIR/last_arg.txt $TESTDIR/test*
 	TMPFILE=$(mktemp)
 	for i in $(seq 1 $1); do
-		fio -filename=$TESTDIR/test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=$2 -thread -numjobs=1 -size=$3 -name=randrw --dedupe_percentage=$4 -group_reporting >> $TMPFILE &
+		fio -filename=$TESTDIR/test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=4K -thread -numjobs=1 -size=$2 -name=randrw --dedupe_percentage=$3 -group_reporting
 	done
-	wait
-
 	mv $TEST_ARG $TESTDIR/last_arg.txt
-	make
-	TMPOUT=$(mktemp)
-	grep WRITE: $TMPFILE > $TMPOUT
-	cat $TMPOUT
-	echo -n Total: 
-	sed 's/.*WRITE: bw=//g' $TMPOUT | sed 's/iB.*//g' | ./toG | ./get_sum | tr -d "\n"
-	echo GiB/s
-	rm $TMPFILE $TMPOUT
 fi
 
 sudo cp $TESTDIR/test* /mnt/pmem/
