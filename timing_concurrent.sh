@@ -6,7 +6,7 @@ if [ ! $3 ]; then
 fi
 cd ..
 make
-sudo bash -c "echo timing_concurrent $* > /dev/kmsg"
+sudo bash -c "echo $0 $* > /dev/kmsg"
 sudo bash setup-pmfs.sh
 cd -
 

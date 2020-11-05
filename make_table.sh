@@ -2,7 +2,7 @@ if [ ! $3 ]; then
 	echo Usage: $0 max_threads size step_of_dup_rate
 	exit
 fi
-sudo bash -c "echo make_table $* > /dev/kmsg"
+sudo bash -c "echo $0 $* > /dev/kmsg"
 dup_arr=( $(seq 0 $3 100) )
 echo dup_rate numjobs throughput\(GiB/s\)
 for dup in ${dup_arr[@]}; do
