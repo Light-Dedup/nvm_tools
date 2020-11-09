@@ -4,7 +4,7 @@ if [ ! $3 ]; then
 	exit
 fi
 cd ..
-sudo bash setup-pmfs.sh
+sudo bash setup.sh
 cd -
 TESTDIR=/home/searchstar/test
 TEST_ARG=$(mktemp)

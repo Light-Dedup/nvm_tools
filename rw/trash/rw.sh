@@ -6,7 +6,7 @@ if [ ! $3 ]; then
 fi
 sudo bash -c "echo $0 $* > /dev/kmsg"
 cd ../..
-sudo bash setup-pmfs.sh
+sudo bash setup.sh
 
 sudo fio -directory=/mnt/pmem -direct=1 -iodepth 1 -rw=rw -ioengine=sync -bs=4K -thread -numjobs=$1 -size=$(expr $2 \* 10 \* \( 100 - $3\) ) -name=test --rwmixread=$3 --dedupe_percentage=0 -group_reporting
 

@@ -6,7 +6,7 @@ if [ ! $2 ]; then
 fi
 sudo bash -c "echo $0 $* > /dev/kmsg"
 cd ../..
-sudo bash setup-pmfs.sh
+sudo bash setup.sh
 
 sudo mkdir /mnt/pmem/pre
 sudo fio -directory=/mnt/pmem/pre -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=$1 -size=$2 -name=test --dedupe_percentage=0 -group_reporting > /dev/null

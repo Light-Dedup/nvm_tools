@@ -7,7 +7,7 @@ fi
 cd ..
 make
 sudo bash -c "echo $0 $* > /dev/kmsg"
-sudo bash setup-pmfs.sh
+sudo bash setup.sh
 cd -
 
 TMPOUT=$(mktemp)
