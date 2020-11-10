@@ -6,7 +6,7 @@ if [ ! $1 ]; then
 fi
 
 cd ..
-make
+make EXTRA_CFLAGS=-DMEASURE_DRAM_USAGE
 sudo bash -c "echo $0 $* > /dev/kmsg"
 sudo bash setup.sh
 cd -
