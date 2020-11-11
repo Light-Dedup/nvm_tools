@@ -20,7 +20,10 @@ function print_active_total {
 }
 
 echo name active total
+# Will reduce by the time.
+#print_active_total pmfs_kbuf_cache
 print_active_total pmfs_fp_cache
-print_active_total pmfs_inner_cache
-print_active_total pmfs_kbuf_cache
+print_active_total pmfs_inner_cache0
+print_active_total pmfs_inner_cache1
+print_active_total pmfs_inner_cache2
 
