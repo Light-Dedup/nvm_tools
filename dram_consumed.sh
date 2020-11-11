@@ -9,7 +9,7 @@ cd -
 make
 sudo ./exhaust_nvmm
 
-sudo dmesg | grep 'Static DRAM usage:' | tail -n 1 | cut -d " " -f 2-
+sudo dmesg | grep 'Static DRAM usage:' | tail -n 1 | cut -d "]" -f 2 | sed "s/^\s*//g"
 
 function calc_active_total {
 	echo $(($2 * $4)) $(($3 * $4))
