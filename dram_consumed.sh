@@ -27,3 +27,7 @@ print_active_total pmfs_inner_cache0
 print_active_total pmfs_inner_cache1
 print_active_total pmfs_inner_cache2
 
+cd ..
+sudo ./ioctl_table_stat
+sudo dmesg | tail -n 50
+cd -
