@@ -1,10 +1,12 @@
+set -e
+
 if [ ! $3 ]; then
 	echo Usage: $0 max_threads size step_of_read_rate
 	exit
 fi
 cd ..
-make
-cd -
+make 1>&2
+cd - > /dev/null
 sudo bash -c "echo $0 $* > /dev/kmsg"
 read_arr=( $(seq 0 $3 100) )
 TMPOUT=$(mktemp)
