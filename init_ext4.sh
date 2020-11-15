@@ -1,4 +1,8 @@
+if [ ! $1 ]; then
+	echo Usage: $0 mount /dev/pmemx
+	exit
+fi
 umount /mnt/pmem
-mkfs -t ext4 -F /dev/pmem0
-mount -t ext4 /dev/pmem0 /mnt/pmem -o dax
+mkfs -t ext4 -F $1
+mount -t ext4 $1 /mnt/pmem -o dax
 
