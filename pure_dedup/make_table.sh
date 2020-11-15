@@ -1,10 +1,12 @@
+set -e
+
 if [ ! $2 ]; then
 	echo Usage: $0 max_threads size
 	exit
 fi
 cd ..
-make
-cd -
+make 1>&2
+cd - > /dev/null
 sudo bash -c "echo $0 $* > /dev/kmsg"
 TMPOUT=$(mktemp)
 echo numjobs throughput\(GiB/s\)
