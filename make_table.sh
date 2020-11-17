@@ -1,3 +1,5 @@
+set -e
+
 if [ ! $3 ]; then
 	echo Usage: $0 max_threads size step_of_dup_rate
 	exit
