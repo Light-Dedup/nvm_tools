@@ -1,6 +1,7 @@
 get_sum
 toG
 exhaust_nvmm
+write_1G
 *.txt
 *.out
 *.o
