@@ -1,6 +1,7 @@
 CFLAGS := -O3
 
-all: get_sum toG exhaust_nvmm write_1G
+TARGETS := get_sum toG exhaust_nvmm write_1G
+all: ${TARGETS}
 
 get_sum: get_sum.cpp
 	g++ get_sum.cpp -o get_sum
@@ -17,4 +18,7 @@ exhaust_nvmm: helper/exhaust_nvmm.c helper/mt19937ar.o
 write_1G: helper/write_1G.c helper/mt19937ar.o
 	gcc $^ -o $@
 
-.PHONY: all
+clean:
+	rm ${TARGETS}
+
+.PHONY: all clean
