@@ -1,5 +1,5 @@
 if [ ! $1 ]; then
-	echo Usage: $0 mount /dev/pmemx
+	echo Usage: $0 /dev/pmemx
 	exit
 fi
 umount /mnt/pmem

@@ -7,7 +7,7 @@ cd ..
 sudo bash setup.sh
 cd - > /dev/null
 
-TESTDIR=$HOME/test/test_$(echo $* | sed 's/ /_/g')
+TESTDIR=$HOME/fs_test/test_$(echo $* | sed 's/ /_/g')
 if [ ! -d $TESTDIR ]; then
 	mkdir -p $TESTDIR
 fi
