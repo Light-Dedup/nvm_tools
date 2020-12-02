@@ -11,16 +11,17 @@ TESTDIR=$HOME/fs_test/test_$(echo $* | sed 's/ /_/g')
 if [ ! -d $TESTDIR ]; then
 	mkdir -p $TESTDIR
 fi
-cd $TESTDIR
-if [ ! -f complete ]; then
-	for i in $(seq 1 $1); do
-		fio -filename=$TESTDIR/test$i -randseed=$i -direct=1 -iodepth 1 -rw=write -ioengine=psync -bs=4K -thread -numjobs=1 -size=$2 -name=randrw --dedupe_percentage=$3 -group_reporting
-	done
-	touch complete
+if [ ! -f $TESTDIR/complete ]; then
+	sudo bash init_ext4.sh /dev/pmem0
+	sudo rm -r /mnt/pmem/*
+	sudo fio -directory=/mnt/pmem -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=$1 -size=$2 -name=test --dedupe_percentage=$3 -group_reporting
+	mv /mnt/pmem/* $TESTDIR
+	touch $TESTDIR/complete
 fi
 
-sudo cp $TESTDIR/test* /mnt/pmem/
-for i in $(seq 1 $1); do
-	cmp $TESTDIR/test$i /mnt/pmem/test$i
+bash timing_concurrent.sh $*
+for file in $(ls /mnt/pmem); do
+	echo cmp $TESTDIR/$file /mnt/pmem/$file
+	cmp $TESTDIR/$file /mnt/pmem/$file
 done
 
