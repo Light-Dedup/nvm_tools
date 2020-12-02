@@ -15,7 +15,7 @@ if [ ! -f $TESTDIR/complete ]; then
 	sudo bash init_ext4.sh /dev/pmem0
 	sudo rm -r /mnt/pmem/*
 	sudo fio -directory=/mnt/pmem -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=$1 -size=$2 -name=test --dedupe_percentage=$3 -group_reporting
-	mv /mnt/pmem/* $TESTDIR
+	cp /mnt/pmem/* $TESTDIR
 	touch $TESTDIR/complete
 fi
 
