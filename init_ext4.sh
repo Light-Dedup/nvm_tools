@@ -3,6 +3,6 @@ if [ ! $1 ]; then
 	exit
 fi
 umount /mnt/pmem
-mkfs -t ext4 -F $1
+mkfs -t ext4 -F $1 2>&1
 mount -t ext4 $1 /mnt/pmem -o dax
 
