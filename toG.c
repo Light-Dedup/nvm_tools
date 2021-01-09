@@ -12,7 +12,7 @@ int main() {
 			printf("Unrecognized unit %c!\n", m);
 			return 1;
 		}
-		printf("%f\n", x, m);
+		printf("%f\n", x);
 	}
 
 	return 0;
