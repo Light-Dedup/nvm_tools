@@ -4,11 +4,6 @@ if [ ! $3 ]; then
 	exit
 fi
 make
-cd ..
-make
-sudo bash setup.sh
-cd - > /dev/null
-
 TESTDIR=$HOME/fs_test/test_$(echo $* | sed 's/ /_/g')
 if !(cd $TESTDIR 2> /dev/null); then
 	mkdir -p $TESTDIR
