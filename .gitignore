@@ -2,6 +2,7 @@ get_sum
 toG
 exhaust_nvmm
 write_1G
+create_files
 *.txt
 *.out
 *.o
