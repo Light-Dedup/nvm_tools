@@ -6,4 +6,5 @@ create_files
 *.txt
 *.out
 *.o
+*.log
 
