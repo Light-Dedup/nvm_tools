@@ -2,7 +2,7 @@ set -e
 
 if [ ! $3 ]; then
 	echo Usage: $0 num_of_threads size dup_rate
-	exit
+	exit 1
 fi
 cd ..
 make
