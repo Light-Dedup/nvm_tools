@@ -11,7 +11,7 @@ sudo bash setup.sh
 cd -
 
 TMPOUT=$(mktemp)
-sudo fio -directory=/mnt/pmem -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=$1 -size=$2 -name=test --dedupe_percentage=$3 -group_reporting | tee $TMPOUT
+bash helper/fio.sh $* | tee $TMPOUT
 
 make
 echo -n Total:
