@@ -8,5 +8,5 @@ sudo bash -c "echo $0 $* > /dev/kmsg"
 cd ../..
 sudo bash setup.sh
 
-sudo fio -directory=/mnt/pmem -direct=1 -iodepth 1 -rw=rw -ioengine=sync -bs=4K -thread -numjobs=$1 -size=$2 -name=rw --rwmixread=$3 --dedupe_percentage=0 -group_reporting
+sudo fio -directory=/mnt/pmem -fallocate=none -direct=1 -iodepth 1 -rw=rw -ioengine=sync -bs=4K -thread -numjobs=$1 -size=$2 -name=rw --rwmixread=$3 --dedupe_percentage=0 -group_reporting
 
