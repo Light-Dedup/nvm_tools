@@ -6,12 +6,13 @@ if [ ! $3 ]; then
 fi
 sudo bash -c "echo $0 $* > /dev/kmsg"
 dup_arr=( $(seq 0 $3 100) )
-echo dup_rate numjobs each\(MiB\) throughput\(GiB/s\)
+echo dup_rate numjobs each\(MiB\) throughput\(MiB/s\)
 for dup in ${dup_arr[@]}; do
 	for i in $(seq 1 $1); do
 		each=$(($2 / $i))
 		echo -n "$dup $i $each "
-		bash timing_concurrent.sh $i ${each}M $dup | grep Total: | sed 's,Total:,,g' | sed 's,GiB/s,,g'
+		bash timing_concurrent.sh $i ${each}M $dup | grep WRITE: | awk '{print $2}' | sed 's/bw=//g' | ./to_MiB_s
+		echo
 	done
 done
 
