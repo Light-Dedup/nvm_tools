@@ -1,3 +1,5 @@
+set -e
+
 cd ..
 make -j$(nproc)
 sudo bash setup.sh
