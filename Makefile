@@ -1,6 +1,6 @@
 CFLAGS := -O3
 
-TARGETS := get_sum toG to_MiB_s exhaust_nvmm write_1G create_files
+TARGETS := get_sum toG to_MiB_s exhaust_nvmm write_1G create_files to_nsec
 all: ${TARGETS}
 
 helper/mt19937ar.o: helper/mt19937ar.c helper/mt19937ar.h
