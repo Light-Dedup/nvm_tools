@@ -11,7 +11,7 @@ for dup in ${dup_arr[@]}; do
 	for i in $(seq 1 $1); do
 		each=$(($2 / $i))
 		echo -n "$dup $i $each "
-		bash latency_avg.sh $i ${each}M $dup | grep avg= | grep -v clat | awk '{print $5" "$2}' | sed 's/avg=//g' | sed 's/,//g' | sed 's/://g' | ./to_nsec
+		bash timing_concurrent.sh $i ${each}M $dup | grep avg= | grep -v clat | awk -F '=' '{print $1" "$2" "$3" "$4" "$5}' | awk '{print $8" "$2}'  | sed 's/,//g' | sed 's/://g'| ./to_nsec
 		echo
 	done
 done
