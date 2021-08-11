@@ -5,9 +5,8 @@ if [ ! $4 ]; then
 	exit
 fi
 sudo bash -c "echo $0 $* > /dev/kmsg"
-dup_arr=( $(seq 0 $3 100) )
 echo dup_rate numjobs each\(MiB\) latency\(nsec\)
-for dup in ${dup_arr[@]}; do
+for ((dup=0;dup<100;dup=dup+$3)); do
 	for ((i=1;i<=$1;i=i*2));  do
 		each=$(($2 / $i))
 		echo -n "$dup $i $each "
