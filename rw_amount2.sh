@@ -1,12 +1,12 @@
 set -e
 
-if [ ! $2 ]; then
-	echo Usage: $0 threads_first total_size\(MiB\)
+if [ ! $3 ]; then
+	echo Usage: $0 threads_first total_size\(MiB\) pre_process_path
 	exit 1
 fi
 
 cd ..
-bash setup.sh 1>&2
+bash $3 1>&2
 cd - > /dev/null
 each=$(($2 / $1))
 
