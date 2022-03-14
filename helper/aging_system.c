@@ -39,7 +39,7 @@ double get_ms_diff(struct timeval tvBegin, struct timeval tvEnd)
     return 1000 * (tvEnd.tv_sec - tvBegin.tv_sec) + ((tvEnd.tv_usec - tvBegin.tv_usec) / 1000.0);
 }
 
-int main(int argc, char const *argv[])
+int main(int argc, char **argv)
 {
     char *optstring = "d:s:o:h"; 
     int opt;
@@ -102,7 +102,7 @@ int main(int argc, char const *argv[])
     printf("done, time cost: %.2f ms\n", diff);
 
     hole_num = total * hole / 100;
-    printf("Bunch %d hole in the %s randomly...\n", hole_num, filepath);
+    printf("Punching %d hole in %s randomly...\n", hole_num, filepath);
     records = (char *)malloc(sizeof(char) * total);
     gettimeofday(&start, NULL);
     while (hole_num)
@@ -126,7 +126,7 @@ int main(int argc, char const *argv[])
     close(fd);
 
     strcpy(filepath + dirlen, "/file2");
-    printf("Filling holes by %s with %d blocks...\n", filepath, total);
+    printf("Filling holes by %s with %d blocks...\n", filepath, hole_num);
     fd = open(filepath, O_RDWR | O_CREAT);
     if (fd < 0) {
         printf("Create file %s error: %s\n", filepath, strerror(errno));
