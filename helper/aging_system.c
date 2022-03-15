@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 
     hole_num = total * hole / 100;
     printf("Punching %d hole in %s randomly...\n", hole_num, filepath);
-    records = (char *)malloc(sizeof(char) * total);
+    records = (char *)calloc(total, sizeof(char));
     gettimeofday(&start, NULL);
     while (hole_num)
     {
