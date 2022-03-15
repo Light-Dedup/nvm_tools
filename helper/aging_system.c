@@ -43,10 +43,11 @@ int main(int argc, char **argv)
 {
     char *optstring = "d:s:o:h"; 
     int opt;
-    int size, hole, hole_num;
+    unsigned long size, hole_num;
+    int hole_percent;
     int fd;
-    int pos;
-    int step = 0, total = 0;
+    unsigned long pos;
+    unsigned long step = 0, total = 0;
     int dirlen = 0;
     char filepath[128] = {0};
     char buf[BLOCK_SIZE];
@@ -64,10 +65,10 @@ int main(int argc, char **argv)
             strcpy(filepath, optarg);
             break;
         case 's': 
-            size = atoi(optarg);
+            size = atol(optarg);
             break;
         case 'o': 
-            hole = atoi(optarg);
+            hole_percent = atoi(optarg);
             break;
         case 'h':
             usage();
@@ -90,7 +91,7 @@ int main(int argc, char **argv)
 
     init_genrand(MAGIC_RAND);
     
-    printf("Filling file %s with %d blocks...\n", filepath, total);
+    printf("Filling file %s with %lu blocks...\n", filepath, total);
     gettimeofday(&start, NULL);
     for (step = 0; step < total; step++)
     {
@@ -101,8 +102,8 @@ int main(int argc, char **argv)
     diff = get_ms_diff(start, end);
     printf("done, time cost: %.2f ms\n", diff);
 
-    hole_num = total * hole / 100;
-    printf("Punching %d hole in %s randomly...\n", hole_num, filepath);
+    hole_num = total * hole_percent / 100;
+    printf("Punching %lu hole in %s randomly...\n", hole_num, filepath);
     records = (char *)calloc(total, sizeof(char));
     gettimeofday(&start, NULL);
     while (hole_num)
@@ -125,9 +126,9 @@ int main(int argc, char **argv)
     free(records);
     close(fd);
 
-    hole_num = total * hole / 100;
+    hole_num = total * hole_percent / 100;
     strcpy(filepath + dirlen, "/file2");
-    printf("Filling holes by %s with %d blocks...\n", filepath, hole_num);
+    printf("Filling holes by %s with %lu blocks...\n", filepath, hole_num);
     fd = open(filepath, O_RDWR | O_CREAT);
     if (fd < 0) {
         printf("Create file %s error: %s\n", filepath, strerror(errno));
