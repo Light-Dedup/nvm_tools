@@ -125,6 +125,7 @@ int main(int argc, char **argv)
     free(records);
     close(fd);
 
+    hole_num = total * hole / 100;
     strcpy(filepath + dirlen, "/file2");
     printf("Filling holes by %s with %d blocks...\n", filepath, hole_num);
     fd = open(filepath, O_RDWR | O_CREAT);
@@ -132,7 +133,6 @@ int main(int argc, char **argv)
         printf("Create file %s error: %s\n", filepath, strerror(errno));
         exit(1);
     }
-    hole_num = total * hole / 100;
     gettimeofday(&start, NULL);
     while (hole_num)
     {
