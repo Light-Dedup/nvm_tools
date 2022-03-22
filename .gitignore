@@ -5,6 +5,7 @@ exhaust_nvmm
 write_1G
 create_files
 to_nsec
+aging_system
 *.txt
 *.out
 *.o

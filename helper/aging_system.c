@@ -40,14 +40,14 @@ double get_ms_diff(struct timeval tvBegin, struct timeval tvEnd)
     return 1000 * (tvEnd.tv_sec - tvBegin.tv_sec) + ((tvEnd.tv_usec - tvBegin.tv_usec) / 1000.0);
 }
 
-int main(int argc, char const *argv[])
+int main(int argc, char **argv)
 {
     char *optstring = "d:s:o:p:h"; 
     int opt;
-    int size, hole, hole_num, phase;
+    int size, hole_percent, hole_num, phase;
     int fd;
-    int pos;
-    int step = 0, total = 0;
+    unsigned long pos;
+    unsigned long step = 0, total = 0;
     int dirlen = 0;
     char filepath[128] = {0};
     char buf[BLOCK_SIZE];
@@ -65,10 +65,10 @@ int main(int argc, char const *argv[])
             strcpy(filepath, optarg);
             break;
         case 's': 
-            size = atoi(optarg);
+            size = atol(optarg);
             break;
         case 'o': 
-            hole = atoi(optarg);
+            hole_percent = atoi(optarg);
             break;
         case 'p':
             phase = atoi(optarg);
@@ -120,7 +120,7 @@ int main(int argc, char const *argv[])
             exit(1);
         }
 
-        hole_num = total * hole / 100;
+        hole_num = total * hole_percent / 100;
         printf("Phase 2: Punch %d hole in the %s randomly...\n", hole_num, filepath);
         records = (char *)malloc(sizeof(char) * total);
         gettimeofday(&start, NULL);
@@ -148,7 +148,7 @@ int main(int argc, char const *argv[])
     if (phase == 3 || phase == 4) {
         diff = 0;
         strcpy(filepath + dirlen, "/file2");
-        hole_num = total * hole / 100;
+        hole_num = total * hole_percent / 100;
         printf("Phase 3: Filling holes by %s with %d blocks...\n", filepath, hole_num);
         fd = open(filepath, O_RDWR | O_CREAT);
         if (fd < 0) {
@@ -164,7 +164,7 @@ int main(int argc, char const *argv[])
             diff += get_ms_diff(start, end);
             hole_num--;
         }    
-        hole_num = total * hole / 100;
+        hole_num = total * hole_percent / 100;
         printf("done, time cost: %.6f ms\n", diff);
         printf("AgingWriteBW: %.2f MiB per second\n", hole_num * BLOCK_SIZE * 1000.0 / 1024 / 1024 / (diff));
         printf("AgingWriteLAT: %.6f ms\n", diff / hole_num);

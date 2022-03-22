@@ -4,22 +4,22 @@ TARGETS := get_sum toG to_MiB_s exhaust_nvmm write_1G create_files to_nsec aging
 all: ${TARGETS}
 
 helper/mt19937ar.o: helper/mt19937ar.c helper/mt19937ar.h
-	gcc -c helper/mt19937ar.c -o $@
+	gcc -c helper/mt19937ar.c -O3 -o $@
 
 exhaust_nvmm: helper/exhaust_nvmm.c helper/mt19937ar.o
-	gcc $^ -o $@
+	gcc $^ -O3 -o $@
 
 write_1G: helper/write_1G.c helper/mt19937ar.o
-	gcc $^ -o $@
+	gcc $^ -O3 -o $@
 
 aging_system: helper/aging_system.c helper/mt19937ar.o
-	gcc $^ -o $@
+	gcc $^ -O3 -o $@
 
 %: helper/%.c
-	gcc $^ -o $@
+	gcc $^ -O3 -o $@
 
 %: helper/%.cpp
-	g++ $^ -o $@
+	g++ $^ -O3 -o $@
 
 clean:
 	rm ${TARGETS}
