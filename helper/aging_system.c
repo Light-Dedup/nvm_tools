@@ -44,8 +44,9 @@ int main(int argc, char **argv)
 {
     char *optstring = "d:s:o:p:h"; 
     int opt;
-    int size, hole_percent, hole_num, phase;
+    int size, hole_percent, phase;
     int fd;
+    unsigned long hole_num;
     unsigned long pos;
     unsigned long step = 0, total = 0;
     int dirlen = 0;
@@ -97,7 +98,7 @@ int main(int argc, char **argv)
 
         init_genrand(MAGIC_RAND);
         
-        printf("Phase 1: Filling file %s with %d blocks...\n", filepath, total);
+        printf("Phase 1: Filling file %s with %lu blocks...\n", filepath, total);
         for (step = 0; step < total; step++)
         {
             fill_buf((uint32_t *)buf);
@@ -121,7 +122,7 @@ int main(int argc, char **argv)
         }
 
         hole_num = total * hole_percent / 100;
-        printf("Phase 2: Punch %d hole in the %s randomly...\n", hole_num, filepath);
+        printf("Phase 2: Punching %lu hole in the %s randomly...\n", hole_num, filepath);
         records = (char *)malloc(sizeof(char) * total);
         gettimeofday(&start, NULL);
         while (hole_num)
@@ -149,7 +150,7 @@ int main(int argc, char **argv)
         diff = 0;
         strcpy(filepath + dirlen, "/file2");
         hole_num = total * hole_percent / 100;
-        printf("Phase 3: Filling holes by %s with %d blocks...\n", filepath, hole_num);
+        printf("Phase 3: Filling holes by %s with %lu blocks...\n", filepath, hole_num);
         fd = open(filepath, O_RDWR | O_CREAT);
         if (fd < 0) {
             printf("Create file %s error: %s\n", filepath, strerror(errno));
