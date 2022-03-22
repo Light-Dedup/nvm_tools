@@ -20,7 +20,8 @@ void usage()
     printf("-d dir  <dirname>\n");
     printf("-s size <GiB>\n");
     printf("-o hole <Percentage(e.g. 50, 60)>\n");
-    printf("Example: ./aging_system -d /mnt/dir -s 50 -o 50\n");
+    printf("-p phase <1. Create 2. Punching 3. Re-Create 4. All>\n");
+    printf("Example: ./aging_system -d /mnt/dir -s 50 -o 50 -p 4\n");
 }
 
 #define BLOCK_SIZE 4096
@@ -41,9 +42,9 @@ double get_ms_diff(struct timeval tvBegin, struct timeval tvEnd)
 
 int main(int argc, char const *argv[])
 {
-    char *optstring = "d:s:o:h"; 
+    char *optstring = "d:s:o:p:h"; 
     int opt;
-    int size, hole, hole_num;
+    int size, hole, hole_num, phase;
     int fd;
     int pos;
     int step = 0, total = 0;
@@ -69,6 +70,9 @@ int main(int argc, char const *argv[])
         case 'o': 
             hole = atoi(optarg);
             break;
+        case 'p':
+            phase = atoi(optarg);
+            break;
         case 'h':
             usage();
             exit(1);
@@ -79,71 +83,93 @@ int main(int argc, char const *argv[])
         }
     }
 
-    strcpy(filepath + dirlen, "/file1");
-    fd = open(filepath, O_RDWR | O_CREAT);
-    if (fd < 0) {
-        printf("Create file %s error: %s\n", filepath, strerror(errno));
-        exit(1);
-    }
-    
     total = size * 1024 * 1024 * 1024 / BLOCK_SIZE;
-
-    init_genrand(MAGIC_RAND);
     
-    printf("Filling file %s with %d blocks...\n", filepath, total);
-    gettimeofday(&start, NULL);
-    for (step = 0; step < total; step++)
-    {
-        fill_buf((uint32_t *)buf);
-        write(fd, buf, BLOCK_SIZE);
-    }
-    gettimeofday(&end, NULL);
-    diff = get_ms_diff(start, end);
-    printf("done, time cost: %.2f ms\n", diff);
-
-    hole_num = total * hole / 100;
-    printf("Bunch %d hole in the %s randomly...\n", hole_num, filepath);
-    records = (char *)malloc(sizeof(char) * total);
-    gettimeofday(&start, NULL);
-    while (hole_num)
-    {
-        pos = (genrand_int32() % total);
-        if (records[pos] == 0)
-        {
-            records[pos] = 1;
-            if(fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, pos * BLOCK_SIZE, BLOCK_SIZE) < 0)
-            {
-                perror("could not deallocate");
-            }
-            
-            hole_num--;
+    if (phase == 1 || phase == 4) {
+        diff = 0;
+        strcpy(filepath + dirlen, "/file1");
+        fd = open(filepath, O_RDWR | O_CREAT);
+        if (fd < 0) {
+            printf("Create file %s error: %s\n", filepath, strerror(errno));
+            exit(1);
         }
-    }
-    gettimeofday(&end, NULL);
-    diff = get_ms_diff(start, end);
-    printf("done, time cost: %.2f ms\n", diff);
-    free(records);
-    close(fd);
+        
 
-    strcpy(filepath + dirlen, "/file2");
-    printf("Filling holes by %s with %d blocks...\n", filepath, total);
-    fd = open(filepath, O_RDWR | O_CREAT);
-    if (fd < 0) {
-        printf("Create file %s error: %s\n", filepath, strerror(errno));
-        exit(1);
+        init_genrand(MAGIC_RAND);
+        
+        printf("Phase 1: Filling file %s with %d blocks...\n", filepath, total);
+        for (step = 0; step < total; step++)
+        {
+            fill_buf((uint32_t *)buf);
+            gettimeofday(&start, NULL);
+            write(fd, buf, BLOCK_SIZE);
+            gettimeofday(&end, NULL);
+            diff += get_ms_diff(start, end);
+        }
+        printf("done, time cost: %.6f ms\n", diff);
+        printf("NewlyWriteBW: %.2f MiB per second\n", size * 1024 * 1000.0 / diff);
+        printf("NewlyWriteLAT: %.6f ms\n", diff / total);
+        close(fd);
     }
-    hole_num = total * hole / 100;
-    gettimeofday(&start, NULL);
-    while (hole_num)
-    {
-        fill_buf((uint32_t *)buf);
-        write(fd, buf, BLOCK_SIZE);
-        hole_num--;
-    }    
-    gettimeofday(&end, NULL);
-    diff = get_ms_diff(start, end);
-    printf("done, time cost: %.2f ms\n", diff);
-    close(fd);
+    
+    if (phase == 2 || phase == 4) {
+        strcpy(filepath + dirlen, "/file1");
+        fd = open(filepath, O_RDWR);
+        if (fd < 0) {
+            printf("Open file %s error: %s\n", filepath, strerror(errno));
+            exit(1);
+        }
+
+        hole_num = total * hole / 100;
+        printf("Phase 2: Punch %d hole in the %s randomly...\n", hole_num, filepath);
+        records = (char *)malloc(sizeof(char) * total);
+        gettimeofday(&start, NULL);
+        while (hole_num)
+        {
+            pos = (genrand_int32() % total);
+            if (records[pos] == 0)
+            {
+                records[pos] = 1;
+                if(fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, pos * BLOCK_SIZE, BLOCK_SIZE) < 0)
+                {
+                    perror("could not deallocate");
+                }
+                
+                hole_num--;
+            }
+        }
+        gettimeofday(&end, NULL);
+        diff = get_ms_diff(start, end);
+        printf("done, time cost: %.2f ms\n", diff);
+        free(records);
+        close(fd);
+    }
+
+    if (phase == 3 || phase == 4) {
+        diff = 0;
+        strcpy(filepath + dirlen, "/file2");
+        hole_num = total * hole / 100;
+        printf("Phase 3: Filling holes by %s with %d blocks...\n", filepath, hole_num);
+        fd = open(filepath, O_RDWR | O_CREAT);
+        if (fd < 0) {
+            printf("Create file %s error: %s\n", filepath, strerror(errno));
+            exit(1);
+        }
+        while (hole_num)
+        {
+            fill_buf((uint32_t *)buf);
+            gettimeofday(&start, NULL);
+            write(fd, buf, BLOCK_SIZE);
+            gettimeofday(&end, NULL);
+            diff += get_ms_diff(start, end);
+            hole_num--;
+        }    
+        hole_num = total * hole / 100;
+        printf("done, time cost: %.6f ms\n", diff);
+        printf("AgingWriteBW: %.2f MiB per second\n", hole_num * BLOCK_SIZE * 1000.0 / 1024 / 1024 / (diff));
+        printf("AgingWriteLAT: %.6f ms\n", diff / hole_num);
+        close(fd);
+    }
 
     return 0;
 }
