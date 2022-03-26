@@ -8,9 +8,10 @@ fi
 # To prevent password
 sudo echo
 start_time=$(date +%s%N)
-for i in $(seq 1 $3); do
-	for j in $(seq 1 $2); do
-		sudo fio -filename=$1/test_${i}_${j} -fallocate=none -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=1 -size=1G -name=test --dedupe_percentage=$4 -group_reporting -randseed=$(($i*$2+$j)) &
+for i in $(seq 0 $(($3-1))); do
+	for j in $(seq 0 $(($2-1))); do
+		id=$(($i*$2+$j))
+		sudo fio -filename=$1/test_$id -fallocate=none -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=1 -size=1G -name=test --dedupe_percentage=$4 -group_reporting -randseed=$id &
 	done
 	wait
 done
@@ -20,9 +21,10 @@ first=$(($end_time - $start_time))
 sudo mkdir $1/0
 sudo mv $1/test* $1/0/
 start_time=$(date +%s%N)
-for i in $(seq $3 -1 1); do
-	for j in $(seq 1 $2); do
-		sudo fio -filename=$1/test_${i}_${j} -fallocate=none -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=1 -size=1G -name=test --dedupe_percentage=$4 -group_reporting -randseed=$(($i*$2+$j)) &
+for i in $(seq 0 $(($3-1))); do
+	for j in $(seq 0 $(($2-1))); do
+		id=$(($j*$3+$i))
+		sudo fio -filename=$1/test_$id -fallocate=none -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=1 -size=1G -name=test --dedupe_percentage=$4 -group_reporting -randseed=$id &
 	done
 	wait
 done
