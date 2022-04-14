@@ -16,20 +16,22 @@
 		exit(1);			\
 	}
 
-#define STEP (1024 * 1024 * 1024)
+#define STEP (4096)
+#define COUNT (1024 * 1024 * 1024 / STEP)
 
-void fill_buf(uint32_t buf[]) {
-	for (int i = 0; i < STEP / sizeof(uint32_t); ++i) {
-		buf[i] = genrand_int32();
+void fill_buf(uint64_t buf[], uint64_t base, uint64_t value) {
+	for (uint64_t i = 0; i < STEP / sizeof(uint64_t); ++i) {
+		buf[i] = base + value;	// genrand_int32();
 	}
 }
 
-#define FNAME_BASE ("/mnt/pmem/test")
+#define FNAME_BASE ("/mnt/pmem1/test")
 int main(int argc, char **argv) {
 	static char fname[100] = FNAME_BASE;
 	static char buf[STEP];
 	int ret;
 	int fd;
+	uint64_t base;
 
 	if (argc != 2) {
 		printf("Usage: %s rand_seed\n", argv[0]);
@@ -47,8 +49,12 @@ int main(int argc, char **argv) {
 	IF_ERR_EXIT(fd, "open");
 
 	init_genrand(atoi(argv[1]));
-	fill_buf((uint32_t *)buf);
-	ret = write(fd, buf, STEP);
+	base = atoi(argv[1]) * COUNT;
+	for (uint64_t i = 0; i < COUNT; ++i) {
+		fill_buf((uint64_t *)buf, base, i);
+		ret = write(fd, buf, STEP);
+		IF_ERR_EXIT(ret, "write");
+	}
 	if (ret != STEP) {
 		printf("Write failed with return code %d\n", ret);
 		return 1;
