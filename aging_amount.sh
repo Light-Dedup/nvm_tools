@@ -2,7 +2,7 @@ set -e
 
 
 if [ ! $3 ]; then
-	echo Usage: $0 num_of_threads size dup_rate branch_name aging_size aging_hole
+	echo Usage: $0 num_of_threads size dup_rate branch_name aging_size aging_hole pmem_id
 	exit 1
 fi
 
@@ -26,6 +26,7 @@ function restore_pmem () {
 }
 
 branch_name=$4
+pmem_id=$7
 
 git checkout "$branch_name"
 
@@ -41,12 +42,12 @@ git checkout -- "setup.sh"
 
 # phase 1
 res1=$(mktemp)
-sudo ipmctl show -dimm 0x120 -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res1
+sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res1
 
 sudo "$ABSPATH"/aging_system -d /mnt/pmem1 -s $5 -o $6 -p 1
 
 res2=$(mktemp)
-sudo ipmctl show -dimm 0x120 -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res2
+sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res2
 paste $res1 $res2 | awk --non-decimal-data '{print $1,($4-$2)*64}'
 
 # phase 2
@@ -54,12 +55,12 @@ sudo "$ABSPATH"/aging_system -d /mnt/pmem1 -s $5 -o $6 -p 2
 
 # phase 3
 res1=$(mktemp)
-sudo ipmctl show -dimm 0x120 -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res1
+sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res1
 
 sudo "$ABSPATH"/aging_system -d /mnt/pmem1 -s $5 -o $6 -p 3
 
 res2=$(mktemp)
-sudo ipmctl show -dimm 0x120 -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res2
+sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res2
 paste $res1 $res2 | awk --non-decimal-data '{print $1,($4-$2)*64}'
 rm $res1 $res2
 cd - > /dev/null
