@@ -2,7 +2,7 @@ set -e
 
 cd ..
 make -j$(nproc)
-sudo bash setup.sh
+bash setup.sh
 cd - > /dev/null
 res1=$(mktemp)
 sudo ipmctl show -dimm 0x20 -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res1

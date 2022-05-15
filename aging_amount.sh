@@ -35,7 +35,7 @@ sudo bash -c "echo $0 $* > /dev/kmsg"
 
 restore_pmem "setup.sh" 
 set_pmem "setup.sh" "pmem1"
-sudo bash setup.sh 0
+bash setup.sh 0
 restore_pmem "setup.sh" 
 
 git checkout -- "setup.sh"

@@ -32,7 +32,7 @@ sudo bash -c "echo $0 $* > /dev/kmsg"
 
 restore_pmem "setup.sh" 
 set_pmem "setup.sh" "pmem1"
-sudo bash setup.sh "$measure_timing"
+bash setup.sh "$measure_timing"
 restore_pmem "setup.sh" 
 git checkout -- "setup.sh"
 

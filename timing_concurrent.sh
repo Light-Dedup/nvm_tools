@@ -5,9 +5,8 @@ if [ ! $3 ]; then
 	exit 1
 fi
 cd ..
-make
 sudo bash -c "echo $0 $* > /dev/kmsg"
-sudo bash setup.sh
+bash setup.sh
 cd -
 
 bash helper/fio.sh $*
