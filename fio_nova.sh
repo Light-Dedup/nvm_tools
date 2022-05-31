@@ -24,7 +24,7 @@ function restore_pmem () {
 branch_name=$4
 measure_timing=$5
 
-cd "$ABSPATH"/../bin/ || exit
+cd "$ABSPATH"/../Light-Dedup/ || exit
 
 git checkout "$branch_name"
 sudo make -j32
@@ -38,4 +38,4 @@ git checkout -- "setup.sh"
 
 cd - || exit
 
-bash ~/Light-Dedup/nvm_tools/helper/fio.sh $*
+bash "$ABSPATH"/helper/fio.sh $*

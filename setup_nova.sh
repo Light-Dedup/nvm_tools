@@ -23,7 +23,7 @@ function restore_pmem () {
 }
 
 
-cd "$ABSPATH"/../bin/ || exit
+cd "$ABSPATH"/../Light-Dedup/ || exit
 git checkout "$branch_name"
 sudo make -j32
 sudo bash -c "echo $0 $* > /dev/kmsg"

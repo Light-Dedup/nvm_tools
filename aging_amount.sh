@@ -8,7 +8,7 @@ fi
 
 ABSPATH=$(cd "$( dirname "$0" )" && pwd)
 
-cd "$ABSPATH"/../bin || exit
+cd "$ABSPATH"/../Light-Dedup || exit
 
 function set_pmem () {
     local script=$1
