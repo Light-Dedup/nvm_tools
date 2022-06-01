@@ -3,4 +3,4 @@ if [ ! $3 ]; then
 	exit 1
 fi
 
-sudo fio -directory=/mnt/pmem1 -fallocate=none -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=$1 -size=$2 -name=test --dedupe_percentage=$3 -group_reporting
+sudo fio -directory=/mnt/pmem0 -fallocate=none -direct=1 -iodepth 1 -rw=write -ioengine=sync -bs=4K -thread -numjobs=$1 -size=$2 -name=test --dedupe_percentage=$3 -group_reporting

@@ -25,7 +25,7 @@ void fill_buf(uint64_t buf[], uint64_t base, uint64_t value) {
 	}
 }
 
-#define FNAME_BASE ("/mnt/pmem1/test")
+#define FNAME_BASE ("/mnt/pmem0/test")
 int main(int argc, char **argv) {
 	static char fname[100] = FNAME_BASE;
 	static char buf[STEP];

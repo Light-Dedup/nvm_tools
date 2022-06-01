@@ -29,7 +29,7 @@ sudo make -j32
 sudo bash -c "echo $0 $* > /dev/kmsg"
 
 restore_pmem "setup.sh" 
-set_pmem "setup.sh" "pmem1"
+set_pmem "setup.sh" "pmem0"
 sudo bash setup.sh "$2"
 restore_pmem "setup.sh" 
 git checkout -- "setup.sh"

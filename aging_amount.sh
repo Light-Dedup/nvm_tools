@@ -34,7 +34,7 @@ sudo make -j32
 sudo bash -c "echo $0 $* > /dev/kmsg"
 
 restore_pmem "setup.sh" 
-set_pmem "setup.sh" "pmem1"
+set_pmem "setup.sh" "pmem0"
 sudo bash setup.sh 0
 restore_pmem "setup.sh" 
 
@@ -44,20 +44,20 @@ git checkout -- "setup.sh"
 res1=$(mktemp)
 sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res1
 
-sudo "$ABSPATH"/aging_system -d /mnt/pmem1 -s $5 -o $6 -p 1
+sudo "$ABSPATH"/aging_system -d /mnt/pmem0 -s $5 -o $6 -p 1
 
 res2=$(mktemp)
 sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res2
 paste $res1 $res2 | awk --non-decimal-data '{print $1,($4-$2)*64}'
 
 # phase 2
-sudo "$ABSPATH"/aging_system -d /mnt/pmem1 -s $5 -o $6 -p 2
+sudo "$ABSPATH"/aging_system -d /mnt/pmem0 -s $5 -o $6 -p 2
 
 # phase 3
 res1=$(mktemp)
 sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res1
 
-sudo "$ABSPATH"/aging_system -d /mnt/pmem1 -s $5 -o $6 -p 3
+sudo "$ABSPATH"/aging_system -d /mnt/pmem0 -s $5 -o $6 -p 3
 
 res2=$(mktemp)
 sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res2
