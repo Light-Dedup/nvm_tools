@@ -24,7 +24,7 @@ void usage()
     printf("Example: ./aging_system -d /mnt/dir -s 50 -o 50 -p 4\n");
 }
 
-#define BLOCK_SIZE 4096
+#define BLOCK_SIZE (2 * 1024 * 1024)
 #define MAGIC_RAND 2333
 
 void fill_buf(uint32_t buf[]) {
@@ -47,9 +47,9 @@ int main(int argc, char **argv)
     unsigned long size;
     int hole_percent, phase;
     int fd;
-    unsigned long hole_num;
+    unsigned long hole_num, fill_num;
     unsigned long pos;
-    unsigned long step = 0, total = 0;
+    unsigned long step = 0, total_blks = 0, total_4K_blks = 0;
     int dirlen = 0;
     char filepath[128] = {0};
     char buf[BLOCK_SIZE];
@@ -85,7 +85,8 @@ int main(int argc, char **argv)
         }
     }
 
-    total = size * 1024 * 1024 * 1024 / BLOCK_SIZE;
+    total_blks = size * 1024 * 1024 * 1024 / BLOCK_SIZE;
+    total_4K_blks = size * 1024 * 1024 * 1024 / 4096;
 
     init_genrand(MAGIC_RAND + phase);
 
@@ -98,8 +99,8 @@ int main(int argc, char **argv)
             exit(1);
         }
 
-        printf("Phase 1: Filling file %s with %lu blocks...\n", filepath, total);
-        for (step = 0; step < total; step++)
+        printf("Phase 1: Filling file %s with %lu %ldK blocks...\n", filepath, total_blks, BLOCK_SIZE / 1024);
+        for (step = 0; step < total_blks; step++)
         {
             fill_buf((uint32_t *)buf);
             gettimeofday(&start, NULL);
@@ -109,7 +110,7 @@ int main(int argc, char **argv)
         }
         printf("done, time cost: %.6f ms\n", diff);
         printf("NewlyWriteBW: %.2f MiB per second\n", size * 1024 * 1000.0 / diff);
-        printf("NewlyWriteLAT: %.6f ms\n", diff / total);
+        printf("NewlyWriteLAT: %.6f ms\n", diff / total_blks);
         close(fd);
     }
     
@@ -120,18 +121,18 @@ int main(int argc, char **argv)
             printf("Open file %s error: %s\n", filepath, strerror(errno));
             exit(1);
         }
-
-        hole_num = total * hole_percent / 100;
-        printf("Phase 2: Punching %lu hole in %s randomly...\n", hole_num, filepath);
-        records = (char *)calloc(total, sizeof(char));
+        
+        hole_num = total_4K_blks * hole_percent / 100;
+        printf("Phase 2: Punching %lu 4K hole in %s randomly...\n", hole_num, filepath);
+        records = (char *)calloc(total_4K_blks, sizeof(char));
         gettimeofday(&start, NULL);
         while (hole_num)
         {
-            pos = (genrand_int32() % total);
+            pos = (genrand_int32() % total_4K_blks);
             if (records[pos] == 0)
             {
                 records[pos] = 1;
-                if(fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, pos * BLOCK_SIZE, BLOCK_SIZE) < 0)
+                if(fallocate(fd, FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, pos * 4096, 4096) < 0)
                 {
                     perror("could not deallocate");
                 }
@@ -149,26 +150,26 @@ int main(int argc, char **argv)
     if (phase == 3 || phase == 4) {
         diff = 0;
         strcpy(filepath + dirlen, "/file2");
-        hole_num = total * hole_percent / 100;
-        printf("Phase 3: Filling holes by %s with %lu blocks...\n", filepath, hole_num);
+        fill_num = total_blks * hole_percent / 100;
+        printf("Phase 3: Filling holes by %s with %lu %ldK blocks...\n", filepath, fill_num, BLOCK_SIZE / 1024);
         fd = open(filepath, O_RDWR | O_CREAT);
         if (fd < 0) {
             printf("Create file %s error: %s\n", filepath, strerror(errno));
             exit(1);
         }
-        while (hole_num)
+        while (fill_num)
         {
             fill_buf((uint32_t *)buf);
             gettimeofday(&start, NULL);
             write(fd, buf, BLOCK_SIZE);
             gettimeofday(&end, NULL);
             diff += get_ms_diff(start, end);
-            hole_num--;
+            fill_num--;
         }    
-        hole_num = total * hole_percent / 100;
+        fill_num = total_blks * hole_percent / 100;
         printf("done, time cost: %.6f ms\n", diff);
-        printf("AgingWriteBW: %.2f MiB per second\n", hole_num * BLOCK_SIZE * 1000.0 / 1024 / 1024 / (diff));
-        printf("AgingWriteLAT: %.6f ms\n", diff / hole_num);
+        printf("AgingWriteBW: %.2f MiB per second\n", fill_num * BLOCK_SIZE * 1000.0 / 1024 / 1024 / (diff));
+        printf("AgingWriteLAT: %.6f ms\n", diff / fill_num);
         close(fd);
     }
 

@@ -1,5 +1,5 @@
 if [ ! $3 ]; then
-	echo Usage: $0 num_of_threads size dup_rate branch_name measure_timing
+	echo Usage: $0 num_of_threads size dup_rate branch_name measure_timing [block_sz]
 	exit 1
 fi
 
@@ -38,4 +38,4 @@ git checkout -- "setup.sh"
 
 cd - || exit
 
-bash "$ABSPATH"/helper/fio.sh $*
+bash "$ABSPATH"/helper/fio.sh "$1" "$2" "$3" "$6"

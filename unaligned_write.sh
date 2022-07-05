@@ -1,6 +1,5 @@
 cd ..
-make
-sudo bash setup.sh
+bash setup.sh
 cd /mnt/pmem
 sudo bash -c 'echo hello > hello'
 sudo bash -c 'echo First hello done > /dev/kmsg'
