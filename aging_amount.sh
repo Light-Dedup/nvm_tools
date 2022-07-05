@@ -52,6 +52,8 @@ paste $res1 $res2 | awk --non-decimal-data '{print $1,($4-$2)*64}'
 
 # phase 2
 sudo "$ABSPATH"/aging_system -d /mnt/pmem0 -s $5 -o $6 -p 2
+ino=$(stat /mnt/pmem0/file1 | grep "Inode" | awk '{print $2}' | tr -cd "[0-9]")
+echo "$ino" > /proc/fs/NOVA/pmem0/gc
 
 # phase 3
 res1=$(mktemp)
