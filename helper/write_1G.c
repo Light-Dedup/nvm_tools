@@ -16,18 +16,17 @@
 		exit(1);			\
 	}
 
+#define SIZE (1024 * 1024 * 1024)
 #define STEP (2 * 1024 * 1024)
-#define COUNT (1024 * 1024 * 1024 / STEP)
-#define NUM_4K_BLKS (1024 * 1024 * 1024 / 4096)
+#define PAGE_SIZE 4096
 
-void fill_buf(uint64_t buf[], uint64_t base, uint64_t value) {
-	uint64_t num_4k_blks_per_batch = STEP / 4096;
-	value = value * num_4k_blks_per_batch;
-	for (uint64_t i = 0; i < STEP / sizeof(uint64_t); ++i) {
-		buf[i] = base + value;	// genrand_int32();
-		if (i != 0 && i % 4096 == 0) {
-			value += 1;
-		}
+static inline void fill_page(char *page, uint64_t v)
+{
+	uint64_t *buf = (uint64_t *)page;
+	uint64_t *limit = (uint64_t *)(page + PAGE_SIZE);
+	while (buf != limit) {
+		*buf = v;
+		buf += 1;
 	}
 }
 
@@ -37,7 +36,7 @@ int main(int argc, char **argv) {
 	static char buf[STEP];
 	int ret;
 	int fd;
-	uint64_t base;
+	uint64_t v;
 
 	if (argc != 2) {
 		printf("Usage: %s rand_seed\n", argv[0]);
@@ -54,18 +53,19 @@ int main(int argc, char **argv) {
 	fd = open(fname, O_WRONLY | O_CREAT);
 	IF_ERR_EXIT(fd, "open");
 
-	init_genrand(atoi(argv[1]));
-	base = atoi(argv[1]) * NUM_4K_BLKS;
-	for (uint64_t i = 0; i < COUNT; ++i) {
-		fill_buf((uint64_t *)buf, base, i);
+	v = atoi(argv[1]) * (SIZE / PAGE_SIZE);
+	for (uint64_t i = 0; i < SIZE / STEP; ++i) {
+		for (uint64_t j = 0; j < STEP; j += PAGE_SIZE) {
+			fill_page(buf + j, v);
+			v += 1;
+		}
 		ret = write(fd, buf, STEP);
 		IF_ERR_EXIT(ret, "write");
+		if (ret != STEP) {
+			printf("Write failed with return code %d\n", ret);
+			return 1;
+		}
 	}
-	if (ret != STEP) {
-		printf("Write failed with return code %d\n", ret);
-		return 1;
-	} else {
-		return 0;
-	}
+	return 0;
 }
 
