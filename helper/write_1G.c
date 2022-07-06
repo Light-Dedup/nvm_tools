@@ -16,12 +16,18 @@
 		exit(1);			\
 	}
 
-#define STEP (4096)
+#define STEP (2 * 1024 * 1024)
 #define COUNT (1024 * 1024 * 1024 / STEP)
+#define NUM_4K_BLKS (1024 * 1024 * 1024 / 4096)
 
 void fill_buf(uint64_t buf[], uint64_t base, uint64_t value) {
+	uint64_t num_4k_blks_per_batch = STEP / 4096;
+	value = value * num_4k_blks_per_batch;
 	for (uint64_t i = 0; i < STEP / sizeof(uint64_t); ++i) {
 		buf[i] = base + value;	// genrand_int32();
+		if (i != 0 && i % 4096 == 0) {
+			value += 1;
+		}
 	}
 }
 
@@ -49,7 +55,7 @@ int main(int argc, char **argv) {
 	IF_ERR_EXIT(fd, "open");
 
 	init_genrand(atoi(argv[1]));
-	base = atoi(argv[1]) * COUNT;
+	base = atoi(argv[1]) * NUM_4K_BLKS;
 	for (uint64_t i = 0; i < COUNT; ++i) {
 		fill_buf((uint64_t *)buf, base, i);
 		ret = write(fd, buf, STEP);
