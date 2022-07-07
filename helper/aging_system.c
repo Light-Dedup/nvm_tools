@@ -125,7 +125,7 @@ int main(int argc, char **argv)
 		}
 		gettimeofday(&end, NULL);
 		diff = get_ms_diff(start, end);
-		printf("done, time cost: %.6f ms\n", diff);
+		printf("NewlyWriteTime: %.6f ms\n", diff);
 		close(fd);
 	}
 	
@@ -157,7 +157,7 @@ int main(int argc, char **argv)
 		}
 		gettimeofday(&end, NULL);
 		diff = get_ms_diff(start, end);
-		printf("done, time cost: %.2f ms\n", diff);
+		printf("PunchingTime: %.2f ms\n", diff);
 		free(records);
 		close(fd);
 	}
@@ -188,7 +188,7 @@ int main(int argc, char **argv)
 		}
 		gettimeofday(&end, NULL);
 		diff = get_ms_diff(start, end);
-		printf("done, time cost: %.6f ms\n", diff);
+		printf("AgingWriteTime: %.6f ms\n", diff);
 		close(fd);
 	}
 
