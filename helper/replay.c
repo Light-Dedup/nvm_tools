@@ -59,6 +59,9 @@ int main(int argc, char **argv)
     char line[LINE_SIZE];
 	struct timeval start, end;
     unsigned long size_in_total = 0;
+    unsigned long blks_start;
+    unsigned long blks_end;
+    unsigned long blks_replayed = 0;
 	double diff; 
     double time_usage = 0;
 
@@ -87,7 +90,7 @@ int main(int argc, char **argv)
     }
 
     if (strlen(dstpath) == 0) {
-        printf("Please specify the destination directory path\n");
+        printf("Please specify the destination file path\n");
         usage();
         exit(1);
     }
@@ -112,7 +115,7 @@ int main(int argc, char **argv)
     char          rw;
     int           major, minor;
     char          md5[256];
-
+    
     while (fgets(line, LINE_SIZE, src_fp)) {
         memset(blk, 0, BLK_SIZE);
         memset(pname, 0, 128);
@@ -129,6 +132,7 @@ int main(int argc, char **argv)
             write(dst_fd, blk, BLK_SIZE); 
             gettimeofday(&end, NULL);
             time_usage += get_ms_diff(start, end);
+            blks_replayed += 1;
         }
         else {
             gettimeofday(&start, NULL);
