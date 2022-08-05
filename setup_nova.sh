@@ -24,8 +24,8 @@ function restore_pmem () {
 
 
 cd "$ABSPATH"/../Light-Dedup/ || exit
-echo "COMMITID: $(git rev-parse HEAD)"
 git checkout "$branch_name"
+echo "COMMITID: $(git rev-parse HEAD)"
 sudo make -j32
 sudo bash -c "echo $0 $* > /dev/kmsg"
 
