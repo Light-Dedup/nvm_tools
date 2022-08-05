@@ -1,6 +1,7 @@
 CFLAGS := -O3
 
-TARGETS := get_sum toG to_MiB_s exhaust_nvmm write_1G create_files to_nsec aging_system shuffle_and_write
+TARGETS := get_sum toG to_MiB_s exhaust_nvmm write_1G create_files to_nsec aging_system shuffle_and_write replay
+
 all: ${TARGETS}
 
 helper/mt19937ar.o: helper/mt19937ar.c helper/mt19937ar.h
@@ -18,6 +19,9 @@ aging_system: helper/aging_system.c helper/mt19937ar.o
 shuffle_and_write: helper/shuffle_and_write.c helper/mt19937ar.o
 	gcc $^ -O3 -o $@
 
+replay: helper/replay.c helper/mt19937ar.o
+	gcc $^ -O3 -o $@
+	
 %: helper/%.c
 	gcc $^ -O3 -o $@
 
