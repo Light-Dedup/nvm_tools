@@ -7,7 +7,14 @@
 #include "string.h"
 #include "mt19937ar.h"
 #include <errno.h>
-#include <sys/time.h>
+#include <time.h>
+#include <assert.h>
+
+#ifndef PRIszt
+// POSIX
+#define PRIszt "zu"
+// Windows is "Iu"
+#endif
 
 extern char *optarg;
 
@@ -42,9 +49,18 @@ static inline void fill_blk(char *blk, char *md5, int n)
     }
 }
 
-double get_ms_diff(struct timeval tvBegin, struct timeval tvEnd)
-{
-	return 1000 * (tvEnd.tv_sec - tvBegin.tv_sec) + ((tvEnd.tv_usec - tvBegin.tv_usec) / 1000.0);
+static inline uint64_t timespec_to_ns(const struct timespec *t) {
+	return (uint64_t)t->tv_sec * 1000000000 + t->tv_nsec;
+}
+
+static inline uint64_t get_ns_diff(uint64_t start, uint64_t end) {
+    return end - start;
+}
+
+static inline uint64_t timestamp_ns() {
+	struct timespec t;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &t);
+	return timespec_to_ns(&t);
 }
 
 int main(int argc, char **argv)
@@ -57,14 +73,13 @@ int main(int argc, char **argv)
 	char dstpath[128] = {0};
 	char blk[BLK_SIZE];
     char line[LINE_SIZE];
-	struct timeval start, end;
+	uint64_t start, end;
     unsigned long size_in_total = 0;
     unsigned long blks_start;
     unsigned long blks_end;
-    unsigned long blks_replayed = 0;
-	double diff; 
-    double time_usage = 0;
-
+    unsigned long blks_replayed = 0; 
+    uint64_t time_usage = 0;
+    
 	while ((opt = getopt(argc, argv, optstring)) != -1) {
 		switch(opt) {
 		case 'f':
@@ -82,7 +97,7 @@ int main(int argc, char **argv)
 			exit(1);
 		}
 	}
-
+    
     if (strlen(filepath) == 0) {
         printf("Please specify the blkparse file\n");
         usage();
@@ -120,31 +135,34 @@ int main(int argc, char **argv)
         memset(blk, 0, BLK_SIZE);
         memset(pname, 0, 128);
         memset(md5, 0, 256);
-        
+
         /* Strip '\n' */
         line[strlen(line) - 1] = '\0';
 
-        sscanf(line, "%lu %lu %s %lu %lu %c %d %d %s", &ts, &pid, pname, &lba, &blks, &rw, &major, &minor, md5);
-        
-        if (rw == 'W') {    
-            fill_blk(blk, md5, strlen(md5));
-            gettimeofday(&start, NULL);
-            write(dst_fd, blk, BLK_SIZE); 
-            gettimeofday(&end, NULL);
-            time_usage += get_ms_diff(start, end);
-            blks_replayed += 1;
+        if (sscanf(line, "%lu %lu %s %lu %lu %c %d %d %s", &ts, &pid, pname, &lba, &blks, &rw, &major, &minor, md5) == 9) {    
+            if (rw == 'W') {    
+                fill_blk(blk, md5, strlen(md5));
+                start = timestamp_ns();
+                write(dst_fd, blk, BLK_SIZE);
+                end = timestamp_ns();
+                time_usage += get_ns_diff(start, end);
+                blks_replayed += 1;
+            }
+            else {
+                start = timestamp_ns();
+                read(dst_fd, blk, BLK_SIZE);
+                end = timestamp_ns();
+                time_usage += get_ns_diff(start, end);
+            }
+            size_in_total += BLK_SIZE;
         }
         else {
-            gettimeofday(&start, NULL);
-            read(dst_fd, blk, BLK_SIZE);
-            gettimeofday(&end, NULL);
-            time_usage += get_ms_diff(start, end);
+            continue;
         }
-        size_in_total += BLK_SIZE;
     }
 
     close(dst_fd);
     fclose(src_fp);
-    printf("Replay time: %.2f ms, Bandwidth: %.2f MiB/s\n", time_usage, (size_in_total / 1024 / 1024) / (time_usage / 1000));
+    printf("Replay time: %.2f ms, Size: %ld MiB, Bandwidth: %.2f MiB/s\n", time_usage / 1000.0 / 1000, size_in_total / 1024 / 1024, (size_in_total / 1024 / 1024) / (time_usage / 1000.0 / 1000 / 1000));
     return 0;
 }
