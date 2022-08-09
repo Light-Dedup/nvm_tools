@@ -75,10 +75,14 @@ int main(int argc, char **argv)
     char line[LINE_SIZE];
 	uint64_t start, end;
     unsigned long size_in_total = 0;
+    unsigned long write_size_in_total = 0;
+    unsigned long read_size_in_total = 0;
     unsigned long blks_start;
     unsigned long blks_end;
     unsigned long blks_replayed = 0; 
     uint64_t time_usage = 0;
+    uint64_t write_time_usage = 0;
+    uint64_t read_time_usage = 0;
     
 	while ((opt = getopt(argc, argv, optstring)) != -1) {
 		switch(opt) {
@@ -121,48 +125,81 @@ int main(int argc, char **argv)
         perror("open");
         exit(1);
     }
- 
-    unsigned long ts;
-    unsigned long pid;
-    char          pname[128];
-    unsigned long lba;
-    unsigned long blks;
-    char          rw;
-    int           major, minor;
-    char          md5[256];
     
+    char pname[128];
+
+    struct trace_info {
+        unsigned long ts;
+        unsigned long pid;
+        unsigned long lba;
+        unsigned long blks;
+        char          rw;
+        int           major;
+        int           minor;
+        char          md5[256];
+    };
+
+    unsigned long lines = 0;
+    unsigned long valid_lines = 0;
+    unsigned long i = 0;
+    struct trace_info *infos;
+    struct trace_info *info;
+
     while (fgets(line, LINE_SIZE, src_fp)) {
-        memset(blk, 0, BLK_SIZE);
-        memset(pname, 0, 128);
-        memset(md5, 0, 256);
-
-        /* Strip '\n' */
-        line[strlen(line) - 1] = '\0';
-
-        if (sscanf(line, "%lu %lu %s %lu %lu %c %d %d %s", &ts, &pid, pname, &lba, &blks, &rw, &major, &minor, md5) == 9) {    
-            if (rw == 'W') {    
-                fill_blk(blk, md5, strlen(md5));
-                start = timestamp_ns();
-                write(dst_fd, blk, BLK_SIZE);
-                end = timestamp_ns();
-                time_usage += get_ns_diff(start, end);
-                blks_replayed += 1;
-            }
-            else {
-                start = timestamp_ns();
-                read(dst_fd, blk, BLK_SIZE);
-                end = timestamp_ns();
-                time_usage += get_ns_diff(start, end);
-            }
-            size_in_total += BLK_SIZE;
-        }
-        else {
-            continue;
-        }
+        lines++;
     }
 
+    infos = (struct trace_info *)malloc(sizeof(struct trace_info) * lines);
+    if (infos == NULL) {
+        perror("malloc");
+        exit(1);
+    }
+    
+    fseek(src_fp, 0, SEEK_SET);
+    
+    while (fgets(line, LINE_SIZE, src_fp)) {
+        info = &infos[i];
+        /* Strip '\n' */
+        line[strlen(line) - 1] = '\0';
+        if (sscanf(line, "%lu %lu %s %lu %lu %c %d %d %s", &info->ts, &info->pid, pname, &info->lba, &info->blks, &info->rw, &info->major, &info->minor, info->md5) == 9) {
+            valid_lines++;
+            i++;
+        }
+    }
+    
+    for (i = 0; i < valid_lines; i++) {
+        info = &infos[i];
+        if (info->rw == 'W') {    
+            start = timestamp_ns();
+            fill_blk(blk, info->md5, strlen(info->md5));
+            write(dst_fd, blk, BLK_SIZE);
+            end = timestamp_ns();
+            write_time_usage += get_ns_diff(start, end);
+            write_size_in_total += BLK_SIZE;
+            size_in_total += BLK_SIZE;
+        }
+        // else {
+        //     start = timestamp_ns();
+        //     read(dst_fd, blk, BLK_SIZE);
+        //     end = timestamp_ns();
+        //     read_time_usage += get_ns_diff(start, end);
+        //     read_size_in_total += BLK_SIZE;
+        // }
+        // size_in_total += BLK_SIZE;
+    }
+        
+    time_usage = write_time_usage + read_time_usage;
+    
+    free(infos);
     close(dst_fd);
     fclose(src_fp);
-    printf("Replay time: %.2f ms, Size: %ld MiB, Bandwidth: %.2f MiB/s\n", time_usage / 1000.0 / 1000, size_in_total / 1024 / 1024, (size_in_total / 1024 / 1024) / (time_usage / 1000.0 / 1000 / 1000));
+    
+    printf("Replay time: %.2f ms, Size: %ld MiB, Bandwidth: %.2f MiB/s, \
+            Write time: %.2f ms, Write Size: %ld MiB, Write Bandwidth: %.2f MiB/s, \
+            Read time: %.2f ms, Read Size: %ld MiB, Read Bandwidth: %.2f MiB/s\n", 
+            time_usage / 1000.0 / 1000, size_in_total / 1024 / 1024, (size_in_total / 1024 / 1024) / (time_usage / 1000.0 / 1000 / 1000),
+            write_time_usage / 1000.0 / 1000, write_size_in_total / 1024 / 1024, (write_size_in_total / 1024 / 1024) / (write_time_usage / 1000.0 / 1000 / 1000),
+            read_time_usage / 1000.0 / 1000, read_size_in_total / 1024 / 1024, (read_size_in_total / 1024 / 1024) / (read_time_usage / 1000.0 / 1000 / 1000)
+            );
     return 0;
 }
