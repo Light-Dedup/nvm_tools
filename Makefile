@@ -7,6 +7,9 @@ all: ${TARGETS}
 helper/mt19937ar.o: helper/mt19937ar.c helper/mt19937ar.h
 	gcc -c helper/mt19937ar.c -O3 -o $@
 
+helper/lcg.o: helper/lcg.c helper/lcg.h
+	gcc -c helper/lcg.c -O3 -o $@
+
 exhaust_nvmm: helper/exhaust_nvmm.c helper/mt19937ar.o
 	gcc $^ -O3 -o $@
 
@@ -19,7 +22,7 @@ aging_system: helper/aging_system.c helper/mt19937ar.o
 shuffle_and_write: helper/shuffle_and_write.c helper/mt19937ar.o
 	gcc $^ -O3 -o $@
 
-replay: helper/replay.c helper/mt19937ar.o
+replay: helper/replay.c helper/mt19937ar.o helper/lcg.o 
 	gcc $^ -O3 -o $@
 	
 %: helper/%.c
