@@ -204,7 +204,7 @@ void *replay_worker(void *arg) {
     }
 
     if (mode == REPLAY_WRITEONLY) {
-        for (i = hints_start; i < hints_end; i++) {
+        for (i = hints_start; i <= hints_end; i++) {
             hint = &hints[i];
             blk_size = hint->continuous_blks << BLK_SHIFT;
             p = blk;
@@ -217,7 +217,7 @@ void *replay_worker(void *arg) {
         }
     }
     else if (mode == REPLAY_APPEND) {
-        for (i = hints_start; i < hints_end; i++) {
+        for (i = hints_start; i <= hints_end; i++) {
             hint = &hints[i];
             blk_size = hint->continuous_blks << BLK_SHIFT;
             p = blk;
@@ -230,7 +230,7 @@ void *replay_worker(void *arg) {
         }
     }
     else if (mode == REPLAY_READWRITE) {
-        for (i = hints_start; i < hints_end; i++) {
+        for (i = hints_start; i <= hints_end; i++) {
             hint = &hints[i];
             blk_size = hint->continuous_blks << BLK_SHIFT;
             if (hint->rw == 'W') {
