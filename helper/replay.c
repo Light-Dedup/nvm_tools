@@ -402,7 +402,7 @@ int main(int argc, char **argv)
     
     struct trace_replay_hint *hints = malloc(sizeof(struct trace_replay_hint) * valid_lines);
     struct trace_replay_hint *hint;
-    replay_param_t *params = (replay_param_t *)malloc(sizeof(replay_param_t) * valid_lines);
+    replay_param_t *params = (replay_param_t *)malloc(sizeof(replay_param_t) * threads);
     replay_param_t *param;
     unsigned long hints_idx = 0;
     unsigned long per_thread_start; 
