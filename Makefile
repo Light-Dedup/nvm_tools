@@ -23,7 +23,7 @@ shuffle_and_write: helper/shuffle_and_write.c helper/mt19937ar.o
 	gcc $^ -O3 -o $@
 
 replay: helper/replay.c helper/mt19937ar.o helper/lcg.o 
-	gcc $^ -O3 -o $@ -lpthread
+	gcc $^ -O3 -o $@ -lpthread -g
 	
 %: helper/%.c
 	gcc $^ -O3 -o $@

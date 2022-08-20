@@ -29,10 +29,13 @@ void usage()
     printf("-o [a|w|rw|]                    <repley mode, default is write only>\n");
     printf("-g [null|mt19937ar|rand|lcg|]   <random generator, default is null>\n");
     printf("-t threads                      <threads #., default is 1>\n");
-    printf("Example: ./replay -f homes-sample.blkparse -d /mnt/pmem0/ -o rw -g null -t 1\n");
+    printf("-c blks                         <largest continuous blks, default is 1>\n");
+    printf("-v                              <enable verbose?>\n");
+    printf("Example: ./replay -f homes-sample.blkparse -d /mnt/pmem0/ -o rw -g null -t 1 -c 1\n");
 }
-
+#define DEBUG_INFO(verbose, code)        if (verbose) { code; }
 #define BLK_SIZE 4096
+#define BLK_SHIFT 12
 #define LINE_SIZE 4096
 
 void mt19937ar_seed_wrapper(void *ctx, unsigned int s) {
@@ -85,9 +88,9 @@ fill_32bytes_rand(uint32_t *buf, char *md5, void *ctx, randseed_set_func fedseed
     }
 }
 
-static inline void fill_blk(char *blk, char *md5, int n, rand_gener_t *rand_gener)
+static inline void fill_blk(char *blk, char *md5, int md5_len, rand_gener_t *rand_gener)
 {
-	int step = n / 32;
+	int step = md5_len / 32;
     int i = 0, j;
     int blk_size_per_step = BLK_SIZE / step;
     int md5_per_step = blk_size_per_step / 32;
@@ -131,7 +134,8 @@ static inline uint64_t timestamp_ns() {
 #define RANDOM_STDLIB    2
 #define RANDOM_LCG       3
 
-struct trace_info {
+/* for each trace record */
+struct trace_info {         
     unsigned long ts;
     unsigned long pid;
     unsigned long lba;
@@ -143,10 +147,19 @@ struct trace_info {
     char          md5[256];
 };
 
+struct trace_replay_hint {
+    unsigned long continuous_blks; 
+    unsigned long start_trace_line;         /* for index trace infos */
+    unsigned long end_trace_line;
+    char          rw;                       /* mode */
+};
+
 typedef struct {
+    struct trace_replay_hint *hints;
     struct trace_info *infos;
-    unsigned long start;
-    unsigned long end;
+    unsigned long hints_start;
+    unsigned long hints_end;
+    char *buf;
     char dstfilepath[128];
     int worker_id;
     rand_gener_t *rand_gener;
@@ -157,14 +170,18 @@ void *replay_worker(void *arg) {
     replay_param_t *param = (replay_param_t *)arg;
     int dst_fd;
     char *dstpath = param->dstfilepath;
-    unsigned long i;
+    unsigned long i, j;
     int mode = param->mode;
-    unsigned long start = param->start;
-    unsigned long end = param->end;
     struct trace_info *infos = param->infos;
     struct trace_info *info;
+    struct trace_replay_hint *hints = param->hints;
+    struct trace_replay_hint *hint;
+    unsigned long hints_start = param->hints_start;
+    unsigned long hints_end = param->hints_end;
+    char *blk = param->buf;
+    char *p = blk;
+    unsigned long blk_size = 0;
     rand_gener_t *rand_gener = param->rand_gener;
-    char blk[BLK_SIZE];
 
     if (access(dstpath, F_OK) == 0) {
         if (mode == REPLAY_APPEND) {
@@ -187,48 +204,68 @@ void *replay_worker(void *arg) {
     }
 
     if (mode == REPLAY_WRITEONLY) {
-        for (i = start; i < end; i++) {
-            info = &infos[i];    
-            fill_blk(blk, info->md5, strlen(info->md5), rand_gener);
-            pwrite(dst_fd, blk, BLK_SIZE, info->ofs);
+        for (i = hints_start; i < hints_end; i++) {
+            hint = &hints[i];
+            blk_size = hint->continuous_blks << BLK_SHIFT;
+            p = blk;
+            for (j = hint->start_trace_line; j < hint->end_trace_line; j++) {
+                info = &infos[j];    
+                fill_blk(p, info->md5, strlen(info->md5), rand_gener);
+                p += BLK_SIZE;
+            }
+            pwrite(dst_fd, blk, blk_size, infos[hint->start_trace_line].ofs);
         }
     }
     else if (mode == REPLAY_APPEND) {
-        for (i = start; i < end; i++) {
-            info = &infos[i];    
-            fill_blk(blk, info->md5, strlen(info->md5), rand_gener);
-            write(dst_fd, blk, BLK_SIZE);
+        for (i = hints_start; i < hints_end; i++) {
+            hint = &hints[i];
+            blk_size = hint->continuous_blks << BLK_SHIFT;
+            p = blk;
+            for (j = hint->start_trace_line; j < hint->end_trace_line; j++) {
+                info = &infos[j];    
+                fill_blk(p, info->md5, strlen(info->md5), rand_gener);
+                p += BLK_SIZE;
+            }
+            write(dst_fd, blk, blk_size);
         }
     }
     else if (mode == REPLAY_READWRITE) {
-        for (i = start; i < end; i++) {
-            info = &infos[i];    
-            if (info->rw == 'W') {
-                fill_blk(blk, info->md5, strlen(info->md5), rand_gener);
-                pwrite(dst_fd, blk, BLK_SIZE, info->ofs);
+        for (i = hints_start; i < hints_end; i++) {
+            hint = &hints[i];
+            blk_size = hint->continuous_blks << BLK_SHIFT;
+            if (hint->rw == 'W') {
+                p = blk;
+                for (j = hint->start_trace_line; j < hint->end_trace_line; j++) {
+                    info = &infos[j];    
+                    fill_blk(p, info->md5, strlen(info->md5), rand_gener);
+                    p += BLK_SIZE;
+                }
+                pwrite(dst_fd, blk, blk_size, infos[hint->start_trace_line].ofs);
             }
             else {
-                pread(dst_fd, blk, BLK_SIZE, info->ofs);
+                pread(dst_fd, blk, blk_size, infos[hint->start_trace_line].ofs);
             }
-        }   
+        }
     }
     
     close(dst_fd);
+}
 
-    if (param) {
-        if (param->rand_gener) {
-            if (param->rand_gener->ctx) {
-                free(param->rand_gener->ctx);
-            }
-            free(param->rand_gener);
+void check_hints_per_worker(struct trace_replay_hint *hints, unsigned long hints_start, unsigned long hints_end, int thread) {
+    unsigned i;
+    for (i = hints_start; i <= hints_end; i++) {
+        if (hints[i].continuous_blks == 0) {
+            printf("error: continuous_blks is 0\n");
+            exit(1);
         }
-        free(param);
+        printf("hint[%lu] for worker %d: continuous_blks=%lu, start_valid_trace_line=%lu, end_valid_trace_line=%lu\n", i, thread, hints[i].continuous_blks, hints[i].start_trace_line, hints[i].end_trace_line);
     }
 }
 
+
 int main(int argc, char **argv)
 {
-	char *optstring = "f:d:o:g:t:h"; 
+	char *optstring = "f:d:o:g:t:c:vh"; 
 	int opt;
     FILE *src_fp;
 	char filepath[128] = {0};
@@ -242,8 +279,10 @@ int main(int argc, char **argv)
     unsigned long size_in_total = 0;
     unsigned long blks_start;
     unsigned long blks_end;
+    unsigned long max_continuous_4K_blks = 1;  // 4KiB as default
     uint64_t time_usage = 0;
     int threads = 1;
+    int verbose = 0;
 
 	while ((opt = getopt(argc, argv, optstring)) != -1) {
 		switch(opt) {
@@ -284,8 +323,14 @@ int main(int argc, char **argv)
                 return -1;
             }
             break;
+        case 'c':
+            max_continuous_4K_blks = atoi(optarg);
+            break;
         case 't':
             threads = atoi(optarg);
+            break;
+        case 'v':
+            verbose = 1;
             break;
 		case 'h':
 			usage();
@@ -319,7 +364,7 @@ int main(int argc, char **argv)
 
     unsigned long lines = 0;
     unsigned long valid_lines = 0;
-    unsigned long i = 0;
+    unsigned long i = 0, j = 0;
     struct trace_info *infos;
     struct trace_info *info;
 
@@ -354,14 +399,76 @@ int main(int argc, char **argv)
             }
         }
     }
+    
+    struct trace_replay_hint *hints = malloc(sizeof(struct trace_replay_hint) * valid_lines);
+    struct trace_replay_hint *hint;
+    replay_param_t *params = (replay_param_t *)malloc(sizeof(replay_param_t) * valid_lines);
+    replay_param_t *param;
+    unsigned long hints_idx = 0;
+    unsigned long per_thread_start; 
+    unsigned long per_thread_end;
+    long last_lba = -9;
+    char last_rw = 'W';
+    /* init state */
+    unsigned long consecutive_4K_blks = 1;
+    unsigned long consecutive_start = 0;
+    unsigned long consecutive_end = 0;
+    unsigned long _max_continuous_4K_blks = 0;
 
-    pthread_t *tids = (pthread_t *)malloc(threads * sizeof(pthread_t));
-    start = timestamp_ns();
+    unsigned long hints_start = 0;
+    unsigned long hints_end = -1;
+
     for (i = 0; i < threads; i++) {
-        replay_param_t *param = (replay_param_t *)malloc(sizeof(replay_param_t));
-        param->start = i * valid_lines / threads;
-        param->end = (i + 1) * valid_lines / threads;
+        per_thread_start = i * valid_lines / threads;
+        per_thread_end = (i + 1) * valid_lines / threads;
+        consecutive_4K_blks = 1;
+        consecutive_start = per_thread_start;
+        consecutive_end = per_thread_start;
+        last_lba = -9;
+        /* extract consecutive blks per thread*/
+        for (j = per_thread_start; j < per_thread_end; j++) {
+            info = &infos[j];
+            if (info->lba - last_lba == 8 && 
+                info->rw == last_rw &&
+                consecutive_4K_blks < max_continuous_4K_blks &&
+                consecutive_end + 1 < per_thread_end) {
+                consecutive_4K_blks++;
+                consecutive_end++;
+            }
+            else {
+                /* save hints */
+                hint = &hints[hints_idx++];
+                hint->continuous_blks = consecutive_4K_blks;
+                hint->start_trace_line = consecutive_start;
+                hint->end_trace_line = consecutive_end;    
+                hint->rw = last_rw;
+                /* reset state */
+                consecutive_start = j + 1;
+                consecutive_end = j + 1;
+                consecutive_4K_blks = 1;
+            }
+            if (consecutive_4K_blks > _max_continuous_4K_blks) {
+                _max_continuous_4K_blks = consecutive_4K_blks;
+            }
+            last_lba = info->lba;
+            last_rw = info->rw;
+        }
+        if (consecutive_4K_blks != 1) {
+            hint = &hints[hints_idx++];
+            hint->continuous_blks = consecutive_4K_blks;
+            hint->start_trace_line = consecutive_start;
+            hint->end_trace_line = consecutive_end;
+        }
+        /* assign param */
+        param = &params[i];
+        hints_start = hints_end + 1;
+        hints_end = hints_idx - 1;
+        DEBUG_INFO(verbose, check_hints_per_worker(hints, hints_start, hints_end, i));
+        param->hints = hints;
+        param->hints_start = hints_start;
+        param->hints_end = hints_end;
         param->infos = infos;
+        param->buf = (char *)malloc(_max_continuous_4K_blks * BLK_SIZE);
         memcpy(param->dstfilepath, dstpath, strlen(dstpath));
         sprintf(param->dstfilepath + strlen(dstpath), "trace_%d", i);
         rand_gener_t *rand_gener = (rand_gener_t *)malloc(sizeof(rand_gener_t));
@@ -393,7 +500,13 @@ int main(int argc, char **argv)
             break;
         }
         param->rand_gener = rand_gener; 
+    }
 
+
+    pthread_t *tids = (pthread_t *)malloc(threads * sizeof(pthread_t));
+    start = timestamp_ns();
+    for (i = 0; i < threads; i++) {
+        param = &params[i];
         pthread_create(&tids[i], NULL, replay_worker, param);
     }
 
@@ -401,14 +514,25 @@ int main(int argc, char **argv)
     for (i = 0; i < threads; i++) {
         pthread_join(tids[i], NULL);
     }
-
     end = timestamp_ns();
     
     size_in_total = valid_lines * BLK_SIZE;
     time_usage = get_ns_diff(start, end);
         
-    
+end:
+    free(tids);
     free(infos);
+    free(hints);
+    for (i = 0; i < threads; i++) {
+        param = &params[i];
+        if (param->rand_gener) {
+            if (param->rand_gener->ctx) {
+                free(param->rand_gener->ctx);
+            }
+            free(param->rand_gener);
+        }
+    }
+    free(params);
     fclose(src_fp);
     
     // printf("Replay time: %.2f ms, Size: %ld MiB, Bandwidth: %.2f MiB/s, \
