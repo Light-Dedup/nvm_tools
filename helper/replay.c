@@ -72,42 +72,26 @@ typedef struct
     randint32_gen_func genrandom;
 } rand_gener_t;
 
-static __always_inline void 
-fill_32bytes_rand(uint32_t *buf, char *md5, void *ctx, randseed_set_func fedseed, randint32_gen_func genrandom)
-{
-    if (genrandom == NULL) {
-        memcpy((char *)buf, md5, 32);
-    }
-    else {
-        int i;
-        int seed = *(uint32_t *)md5;
-        fedseed(ctx, seed);
-        for (i = 0; i < 8; i++) {
-            buf[i] = (uint32_t)genrandom(ctx);
-        }
-    }
-}
-
 static inline void fill_blk(char *blk, char *md5, int md5_len, rand_gener_t *rand_gener)
 {
 	int step = md5_len / 32;
-    int i = 0, j;
     int blk_size_per_step = BLK_SIZE / step;
-    int md5_per_step = blk_size_per_step / 32;
-    char *cur_md5 = md5;
-    char *cur_blk = blk;
     randseed_set_func fedseed = rand_gener->fedseed;
     randint32_gen_func genrandom = rand_gener->genrandom;
     void *ctx = rand_gener->ctx;
 
-    for (i = 0; i < step; i++) {
-        j = 0;
-        for (j = 0; j < md5_per_step; j++) {
-            // memcpy(cur_blk + j * 32, cur_md5, 32);
-            fill_32bytes_rand((uint32_t *)(cur_blk + j * 32), cur_md5, ctx, fedseed, genrandom);
+    for (int i = 0; i < step; i++, blk += blk_size_per_step, md5 += 32) {
+        if (genrandom == NULL) {
+            for (int j = 0; j < blk_size_per_step; j += 32) {
+                memcpy(blk + j, md5, 32);
+            }
+        } else {
+            int seed = *(uint32_t *)md5;
+            fedseed(ctx, seed);
+            for (int j = 0; j < blk_size_per_step; j += sizeof(uint32_t)) {
+                *(uint32_t *)(blk + j) = (uint32_t)genrandom(ctx);
+            }
         }
-        cur_blk += blk_size_per_step;
-        cur_md5 += 32;
     }
 }
 
