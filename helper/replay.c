@@ -496,6 +496,12 @@ int main(int argc, char **argv)
             rand_gener->genrandom = lcg_gen_wrapper;
             break;
         }
+        case RANDOM_NULL: {
+            rand_gener->ctx = NULL;
+            rand_gener->fedseed = NULL;
+            rand_gener->genrandom = NULL;
+            break;
+        }
         default:
             break;
         }
@@ -530,6 +536,7 @@ end:
                 free(param->rand_gener->ctx);
             }
             free(param->rand_gener);
+            free(param->buf);
         }
     }
     free(params);
