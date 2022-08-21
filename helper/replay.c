@@ -55,11 +55,12 @@ int32_t stdlib_gen_wrapper(void *ctx) {
 }
 
 void lcg_seed_wrapper(void *ctx, unsigned int s) {
+    *(int *)ctx = s;
     return;
 }
 
 int32_t lcg_gen_wrapper(void *ctx) {
-    return lcg_rand_r(*(int *)ctx);
+    return *(int *)ctx = lcg_rand_r(*(int *)ctx);
 }
 
 typedef void (*randseed_set_func)(void *ctx, unsigned int); 
@@ -128,7 +129,7 @@ struct trace_info {
     char          rw;
     int           major;
     int           minor;
-    char          md5[256];
+    char          md5[257];
 };
 
 struct trace_replay_hint {
