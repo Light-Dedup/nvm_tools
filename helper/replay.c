@@ -47,11 +47,12 @@ int32_t mt19937ar_gen_wrapper(void *ctx) {
 }
 
 void stdlib_seed_wrapper(void *ctx, unsigned int s) {
+    *(int *)ctx = s;
     return;
 }
 
 int32_t stdlib_gen_wrapper(void *ctx) {
-    return rand_r(ctx);
+    return *(int *)ctx = rand_r(ctx);
 }
 
 void lcg_seed_wrapper(void *ctx, unsigned int s) {
@@ -407,8 +408,8 @@ int main(int argc, char **argv)
             struct trace_info *info = infos + j;
             struct trace_info *pre = infos + j - 1;
             if (info->lba - pre->lba == 8 && 
-                    info->rw == pre->rw &&
-                    (j - consecutive_start) < max_continuous_4K_blks) {
+                info->rw == pre->rw &&
+                (j - consecutive_start) < max_continuous_4K_blks) {
                 continue;
             } else {
                 /* save hints */
