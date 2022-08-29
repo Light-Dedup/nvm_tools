@@ -19,6 +19,8 @@
 // Windows is "Iu"
 #endif
 
+#define MAX_NAME_LEN     256
+
 #define REPLAY_WRITEONLY 1
 #define REPLAY_READWRITE 2
 #define REPLAY_APPEND    3
@@ -28,10 +30,24 @@
 #define RANDOM_STDLIB    2
 #define RANDOM_LCG       3
 
+#define REPLAY_FIU       0
+
+#define DEBUG_INFO(verbose, code)        if (verbose) { code; }
+#define BLK_SIZE 4096
+#define BLK_SHIFT 12
+#define LINE_SIZE 4096
+
 extern char *optarg;
-char dstpath[128] = {0};
-int rand_gener_type = 0;
+char dstpath[MAX_NAME_LEN] = {0};
+/* replay type */
+int rand_gener_type = RANDOM_NULL;
 int mode = REPLAY_WRITEONLY;
+int trace_format_type = REPLAY_FIU;
+/* dump read related */
+char dump_read_path[MAX_NAME_LEN] = {0};
+int is_dump_read = 0;
+FILE *drfp;
+/* miscs */
 unsigned long max_continuous_4K_blks = 1;  // 4KiB as default
 int threads = 1;
 int verbose = 0;
@@ -40,20 +56,21 @@ void usage()
 {
 	printf("Replay file parsed by blkparse written by deadpool\n");
 	printf("Description: tools to help reply traces under different threads\n");
-	printf("-f blkparse                     <.blkparse filename>\n");
+	printf("-f trace                        <trace filename>\n");
 	printf("-d dstpath                      <dst directory to replay>\n");
     printf("-o [a|w|rw|]                    <repley mode, default is write only>\n");
     printf("-g [null|mt19937ar|rand|lcg|]   <random generator, default is null>\n");
     printf("-t threads                      <threads #., default is 1>\n");
     printf("-c blks                         <largest continuous blks, default is 1>\n");
+    printf("-m [fiu|]                       <trace file format, default is fiu>\n");
+    printf("-r path                         <dump read content into file path, for debug purpose>\n");
     printf("-v                              <enable verbose?>\n");
-    printf("Example: ./replay -f homes-sample.blkparse -d /mnt/pmem0/ -o rw -g null -t 1 -c 1\n");
+    printf("Basic Usage:   ./replay -f homes-sample.blkparse -d /mnt/pmem0/ -o rw -g null -t 1 -c 1\n");
+    printf("Advance Usage: ./replay -f homes-sample.blkparse -d /mnt/pmem0/ -o rw -g null -t 1 -c 1 -r ./read_content -m fiu -v\n");
+    printf("Simple Usage:  ./replay -f homes-sample.blkparse -d /mnt/pmem0/\n");
 }
-#define DEBUG_INFO(verbose, code)        if (verbose) { code; }
-#define BLK_SIZE 4096
-#define BLK_SHIFT 12
-#define LINE_SIZE 4096
 
+/* random number generators */
 void mt19937ar_seed_wrapper(void *ctx, unsigned int s) {
     init_genrand_r(ctx, s);
 }
@@ -154,6 +171,7 @@ struct trace_container {
     int                capacity;
 };
 
+/* trace containers related */
 #define DEFAULT_COLLECTIONS_CAPACITY 64
 struct trace_container *trace_container_create(int capacity, void *meta) {
     struct trace_container *tc = malloc(sizeof(struct trace_container));
@@ -189,7 +207,7 @@ void trace_container_add_collection(struct trace_container *tc, struct trace_con
     }
 }
 
-
+/* quick sort */
 unsigned long _partition_by_ts(struct trace_info **infos_map, unsigned long low, unsigned long high)
 {
     unsigned long low_index = low;
@@ -244,7 +262,7 @@ typedef struct {
     unsigned long hints_start;
     unsigned long hints_end;
     char *buf;
-    char dstfilepath[128];
+    char dstfilepath[MAX_NAME_LEN];
     int worker_id;
     rand_gener_t *rand_gener;
     int mode;
@@ -334,6 +352,9 @@ void *replay_worker(void *arg) {
             }
             else {
                 pread(dst_fd, blk, blk_size, infos_map[hint->start_trace_line]->ofs);
+                if (is_dump_read) {
+                    fwrite(blk, 1, blk_size, drfp);
+                }
             }
         }
     }
@@ -512,7 +533,7 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
 
 unsigned long parse_trace_info(FILE *src_fp, struct trace_info **infos, int mode) {
     char line[LINE_SIZE];
-    char pname[128];
+    char pname[MAX_NAME_LEN];
     unsigned long valid_lines = 0;
     unsigned long i = 0;
     unsigned long lines = 0;
@@ -553,12 +574,12 @@ unsigned long parse_trace_info(FILE *src_fp, struct trace_info **infos, int mode
 
 int main(int argc, char **argv)
 {
-	char *optstring = "f:d:o:g:t:c:vh"; 
+	char *optstring = "f:d:o:g:t:c:vhm:r:"; 
 	int opt;
     FILE *src_fp;
-	char filepath[128] = {0};
-    char mode_str[128] = {0};
-    char rand_gener_str[128] = {0};
+	char filepath[MAX_NAME_LEN] = {0};
+    char mode_str[MAX_NAME_LEN] = {0};
+    char tmp_str[MAX_NAME_LEN] = {0};
 	uint64_t start, end;
     unsigned long size_in_total = 0;
     unsigned long blks_start;
@@ -590,14 +611,14 @@ int main(int argc, char **argv)
             }
             break;
         case 'g':
-            strcpy(rand_gener_str, optarg);
-            if (strcmp(rand_gener_str, "mt19937ar") == 0) {
+            strcpy(tmp_str, optarg);
+            if (strcmp(tmp_str, "mt19937ar") == 0) {
                 rand_gener_type = RANDOM_MT19937AR;
-            } else if (strcmp(rand_gener_str, "rand") == 0) {
+            } else if (strcmp(tmp_str, "rand") == 0) {
                 rand_gener_type = RANDOM_STDLIB;
-            } else if (strcmp(rand_gener_str, "lcg") == 0) {
+            } else if (strcmp(tmp_str, "lcg") == 0) {
                 rand_gener_type = RANDOM_LCG;
-            } else if (strcmp(rand_gener_str, "null") == 0) {
+            } else if (strcmp(tmp_str, "null") == 0) {
                 rand_gener_type = RANDOM_NULL;
             } else {
                 usage();
@@ -612,6 +633,19 @@ int main(int argc, char **argv)
             break;
         case 'v':
             verbose = 1;
+            break;
+        case 'm':
+            strcpy(tmp_str, optarg);
+            if (strcmp(tmp_str, "fiu") == 0) {
+                trace_format_type = REPLAY_FIU;
+            } else {
+                usage();
+                return -1;
+            }
+            break;
+        case 'r':
+            is_dump_read = 1;
+            strcpy(dump_read_path, optarg);
             break;
 		case 'h':
 			usage();
@@ -639,6 +673,14 @@ int main(int argc, char **argv)
     if (src_fp == NULL) {
         perror("open");
         exit(1);
+    }
+
+    if (is_dump_read) {
+        drfp = fopen(dump_read_path, "w");
+        if (drfp == NULL) {
+            perror("open read dump file");
+            exit(1);
+        }
     }
 
     int i;
@@ -689,7 +731,9 @@ end:
     hashmap_free(map);
     free(params);
     fclose(src_fp);
-    
+    if (is_dump_read) {
+        fclose(drfp);
+    }
     // printf("Replay time: %.2f ms, Size: %ld MiB, Bandwidth: %.2f MiB/s, \
     //         Write time: %.2f ms, Write Size: %ld MiB, Write Bandwidth: %.2f MiB/s, \
     //         Read time: %.2f ms, Read Size: %ld MiB, Read Bandwidth: %.2f MiB/s\n", 
