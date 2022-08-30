@@ -19,20 +19,24 @@
 // Windows is "Iu"
 #endif
 
-#define MAX_NAME_LEN     256
+#define MAX_NAME_LEN 256
 
 #define REPLAY_WRITEONLY 1
 #define REPLAY_READWRITE 2
-#define REPLAY_APPEND    3
+#define REPLAY_APPEND 3
 
-#define RANDOM_NULL      0
+#define RANDOM_NULL 0
 #define RANDOM_MT19937AR 1
-#define RANDOM_STDLIB    2
-#define RANDOM_LCG       3
+#define RANDOM_STDLIB 2
+#define RANDOM_LCG 3
 
-#define REPLAY_FIU       0
+#define REPLAY_FIU 0
 
-#define DEBUG_INFO(verbose, code)        if (verbose) { code; }
+#define DEBUG_INFO(verbose, code) \
+    if (verbose)                  \
+    {                             \
+        code;                     \
+    }
 #define BLK_SIZE 4096
 #define BLK_SHIFT 12
 #define LINE_SIZE 4096
@@ -48,16 +52,16 @@ char dump_read_path[MAX_NAME_LEN] = {0};
 int is_dump_read = 0;
 FILE *drfp;
 /* miscs */
-unsigned long max_continuous_4K_blks = 1;  // 4KiB as default
+unsigned long max_continuous_4K_blks = 1; // 4KiB as default
 int threads = 1;
 int verbose = 0;
 
-void usage() 
+void usage()
 {
-	printf("Replay file parsed by blkparse written by deadpool\n");
-	printf("Description: tools to help reply traces under different threads\n");
-	printf("-f trace                        <trace filename>\n");
-	printf("-d dstpath                      <dst directory to replay>\n");
+    printf("Replay file parsed by blkparse written by deadpool\n");
+    printf("Description: tools to help reply traces under different threads\n");
+    printf("-f trace                        <trace filename>\n");
+    printf("-d dstpath                      <dst directory to replay>\n");
     printf("-o [a|w|rw|]                    <repley mode, default is write only>\n");
     printf("-g [null|mt19937ar|rand|lcg|]   <random generator, default is null>\n");
     printf("-t threads                      <threads #., default is 1>\n");
@@ -71,36 +75,42 @@ void usage()
 }
 
 /* random number generators */
-void mt19937ar_seed_wrapper(void *ctx, unsigned int s) {
+void mt19937ar_seed_wrapper(void *ctx, unsigned int s)
+{
     init_genrand_r(ctx, s);
 }
 
-int32_t mt19937ar_gen_wrapper(void *ctx) {
+int32_t mt19937ar_gen_wrapper(void *ctx)
+{
     return genrand_int32_r(ctx);
 }
 
-void stdlib_seed_wrapper(void *ctx, unsigned int s) {
+void stdlib_seed_wrapper(void *ctx, unsigned int s)
+{
     *(int *)ctx = s;
     return;
 }
 
-int32_t stdlib_gen_wrapper(void *ctx) {
+int32_t stdlib_gen_wrapper(void *ctx)
+{
     return *(int *)ctx = rand_r(ctx);
 }
 
-void lcg_seed_wrapper(void *ctx, unsigned int s) {
+void lcg_seed_wrapper(void *ctx, unsigned int s)
+{
     *(int *)ctx = s;
     return;
 }
 
-int32_t lcg_gen_wrapper(void *ctx) {
+int32_t lcg_gen_wrapper(void *ctx)
+{
     return *(int *)ctx = lcg_rand_r(*(int *)ctx);
 }
 
-typedef void (*randseed_set_func)(void *ctx, unsigned int); 
+typedef void (*randseed_set_func)(void *ctx, unsigned int);
 typedef int32_t (*randint32_gen_func)(void *ctx);
 
-typedef struct 
+typedef struct
 {
     void *ctx;
     randseed_set_func fedseed;
@@ -109,71 +119,84 @@ typedef struct
 
 static inline void fill_blk(char *blk, char *md5, int md5_len, rand_gener_t *rand_gener)
 {
-	int step = md5_len / 32;
+    int step = md5_len / 32;
     int blk_size_per_step = BLK_SIZE / step;
     randseed_set_func fedseed = rand_gener->fedseed;
     randint32_gen_func genrandom = rand_gener->genrandom;
     void *ctx = rand_gener->ctx;
 
-    for (int i = 0; i < step; i++, blk += blk_size_per_step, md5 += 32) {
-        if (genrandom == NULL) {
-            for (int j = 0; j < blk_size_per_step; j += 32) {
+    for (int i = 0; i < step; i++, blk += blk_size_per_step, md5 += 32)
+    {
+        if (genrandom == NULL)
+        {
+            for (int j = 0; j < blk_size_per_step; j += 32)
+            {
                 memcpy(blk + j, md5, 32);
             }
-        } else {
+        }
+        else
+        {
             int seed = *(uint32_t *)md5;
             fedseed(ctx, seed);
-            for (int j = 0; j < blk_size_per_step; j += sizeof(uint32_t)) {
+            for (int j = 0; j < blk_size_per_step; j += sizeof(uint32_t))
+            {
                 *(uint32_t *)(blk + j) = (uint32_t)genrandom(ctx);
             }
         }
     }
 }
 
-static inline uint64_t timespec_to_ns(const struct timespec *t) {
-	return (uint64_t)t->tv_sec * 1000000000 + t->tv_nsec;
+static inline uint64_t timespec_to_ns(const struct timespec *t)
+{
+    return (uint64_t)t->tv_sec * 1000000000 + t->tv_nsec;
 }
 
-static inline uint64_t get_ns_diff(uint64_t start, uint64_t end) {
+static inline uint64_t get_ns_diff(uint64_t start, uint64_t end)
+{
     return end - start;
 }
 
-static inline uint64_t timestamp_ns() {
-	struct timespec t;
-	clock_gettime(CLOCK_MONOTONIC_RAW, &t);
-	return timespec_to_ns(&t);
+static inline uint64_t timestamp_ns()
+{
+    struct timespec t;
+    clock_gettime(CLOCK_MONOTONIC_RAW, &t);
+    return timespec_to_ns(&t);
 }
 
 /* for each trace record */
-struct trace_info {         
+struct trace_info
+{
     unsigned long ts;
     unsigned long pid;
     unsigned long lba;
     unsigned long ofs;
     unsigned long blks;
-    char          rw;
-    int           major;
-    int           minor;
-    char          md5[257];
+    char rw;
+    int major;
+    int minor;
+    char md5[257];
 };
 
-struct trace_replay_hint {
-    unsigned long continuous_blks; 
-    unsigned long start_trace_line;         /* for index trace infos */
-    char          rw;                       /* mode */
+struct trace_replay_hint
+{
+    unsigned long continuous_blks;
+    unsigned long start_trace_line; /* for index trace infos */
+    char rw;                        /* mode */
 };
 
 /* a collection of trace info */
-struct trace_container {
-    struct trace_info  **infos_map;
-    void               *meta;
-    int                size;
-    int                capacity;
+struct trace_container
+{
+    struct trace_info **infos_map;
+    void *meta;
+    int size;
+    int capacity;
 };
 
 /* trace containers related */
 #define DEFAULT_COLLECTIONS_CAPACITY 64
-struct trace_container *trace_container_create(int capacity, void *meta) {
+struct trace_container *trace_container_create(int capacity, void *meta)
+{
     struct trace_container *tc = malloc(sizeof(struct trace_container));
     tc->infos_map = malloc(sizeof(struct trace_info *) * capacity);
     tc->size = 0;
@@ -182,18 +205,23 @@ struct trace_container *trace_container_create(int capacity, void *meta) {
     return tc;
 }
 
-void trace_container_destroy(struct trace_container *tc) {
-    if (tc) {
+void trace_container_destroy(struct trace_container *tc)
+{
+    if (tc)
+    {
         free(tc->infos_map);
         free(tc);
     }
 }
 
-void trace_container_add(struct trace_container *tc, struct trace_info *info) {
-    if (tc->size == tc->capacity) {
+void trace_container_add(struct trace_container *tc, struct trace_info *info)
+{
+    if (tc->size == tc->capacity)
+    {
         tc->capacity *= 2;
         tc->infos_map = realloc(tc->infos_map, sizeof(struct trace_info *) * tc->capacity);
-        if (!tc->infos_map) {
+        if (!tc->infos_map)
+        {
             printf("realloc failed\n");
             exit(1);
         }
@@ -201,8 +229,10 @@ void trace_container_add(struct trace_container *tc, struct trace_info *info) {
     tc->infos_map[tc->size++] = info;
 }
 
-void trace_container_add_collection(struct trace_container *tc, struct trace_container *tc2) {
-    for (int i = 0; i < tc2->size; i++) {
+void trace_container_add_collection(struct trace_container *tc, struct trace_container *tc2)
+{
+    for (int i = 0; i < tc2->size; i++)
+    {
         trace_container_add(tc, tc2->infos_map[i]);
     }
 }
@@ -216,7 +246,7 @@ unsigned long _partition_by_ts(struct trace_info **infos_map, unsigned long low,
 
     pivot = infos_map[low];
 
-    for (unsigned long i = low + 1; i < high; i++)
+    for (unsigned long i = low + 1; i <= high; i++)
     {
         if (infos_map[i]->ts < pivot->ts)
         {
@@ -234,29 +264,85 @@ unsigned long _partition_by_ts(struct trace_info **infos_map, unsigned long low,
     return low_index;
 }
 
-void _trace_infomap_qsort_by_ts(struct trace_info **infos_map, unsigned long low, unsigned long high) {
+void _trace_infomap_qsort_by_ts(struct trace_info **infos_map, unsigned long low, unsigned long high)
+{
     if (low < high)
     {
         unsigned long pivot = _partition_by_ts(infos_map, low, high);
         if (pivot > 0)
-            _trace_infomap_qsort_by_ts(infos_map, low, pivot);
+            _trace_infomap_qsort_by_ts(infos_map, low, pivot - 1);
         _trace_infomap_qsort_by_ts(infos_map, pivot + 1, high);
     }
 }
 
-void trace_container_sort_infomap_by_ts(struct trace_container *tc) {
-    _trace_infomap_qsort_by_ts(tc->infos_map, 0, tc->size);
+/* TODO: Change to Merge sort */
+void _merge_array_by_ts(struct trace_info **infos_map, unsigned long begin, 
+                unsigned long mid, unsigned long end, struct trace_info **temp)
+{
+    unsigned long i = begin,j = mid;
+    unsigned long m = mid + 1,n = end;
+    unsigned long k = 0;
+
+    while(i <= j && m <= n)
+    {
+        if(infos_map[i]->ts <= infos_map[m]->ts)
+        {
+            temp[k++] = infos_map[i++];
+        }
+        else
+        {
+            temp[k++] = infos_map[m++];
+        }
+    }
+
+    while(i <= j)
+    {
+        temp[k++] = infos_map[i++];
+    }
+
+    while(m <= n)
+    {
+        temp[k++] = infos_map[m++];
+    }
+
+    for(i = 0; i < k; i++)
+    {
+        infos_map[begin + i] = temp[i];
+    }
 }
 
-void trace_container_print_info(struct trace_container *tc) {
+void _trace_infomap_msort_by_ts(struct trace_info **infos_map, unsigned long begin, 
+               unsigned long end, struct trace_info **temp)
+{
+    if(begin < end)
+    {
+        unsigned long mid = (begin + end) / 2;
+        _trace_infomap_msort_by_ts(infos_map, begin, mid, temp);   
+        _trace_infomap_msort_by_ts(infos_map, mid + 1, end, temp);   
+        _merge_array_by_ts(infos_map, begin, mid, end, temp); 
+    }
+}
+
+void trace_container_sort_infomap_by_ts(struct trace_container *tc)
+{
+    // _trace_infomap_qsort_by_ts(tc->infos_map, 0, tc->size - 1);
+    struct trace_info **temp = (struct trace_info **)malloc(sizeof(struct trace_info *) * tc->size);
+    _trace_infomap_msort_by_ts(tc->infos_map, 0, tc->size - 1, temp);
+    free(temp);
+}
+
+void trace_container_print_info(struct trace_container *tc)
+{
     printf("ts\tpid\tlba\tofs\tblks\trw\n");
-    for (int i = 0; i < tc->size; i++) {
+    for (int i = 0; i < tc->size; i++)
+    {
         struct trace_info *info = tc->infos_map[i];
         printf("%lu\t%lu\t%lu\t%lu\t%lu\t%c \n", info->ts, info->pid, info->lba, info->ofs, info->blks, info->rw);
     }
 }
 
-typedef struct {
+typedef struct
+{
     struct trace_container *tc;
     struct trace_replay_hint *hints;
     unsigned long hints_start;
@@ -266,9 +352,10 @@ typedef struct {
     int worker_id;
     rand_gener_t *rand_gener;
     int mode;
-} replay_param_t; 
+} replay_param_t;
 
-void *replay_worker(void *arg) {
+void *replay_worker(void *arg)
+{
     replay_param_t *param = (replay_param_t *)arg;
     int dst_fd;
     char *dstpath = param->dstfilepath;
@@ -285,34 +372,46 @@ void *replay_worker(void *arg) {
     unsigned long blk_size = 0;
     rand_gener_t *rand_gener = param->rand_gener;
 
-    if (access(dstpath, F_OK) == 0) {
-        if (mode == REPLAY_APPEND) {
+    if (access(dstpath, F_OK) == 0)
+    {
+        if (mode == REPLAY_APPEND)
+        {
             dst_fd = open(dstpath, O_RDWR | O_APPEND);
-        } else {
+        }
+        else
+        {
             dst_fd = open(dstpath, O_RDWR);
         }
     }
-    else {
-        if (mode == REPLAY_APPEND) {
+    else
+    {
+        if (mode == REPLAY_APPEND)
+        {
             dst_fd = open(dstpath, O_RDWR | O_CREAT | O_TRUNC | O_APPEND, 0644);
-        } else {
+        }
+        else
+        {
             dst_fd = open(dstpath, O_RDWR | O_CREAT | O_TRUNC, 0644);
         }
     }
 
-    if (dst_fd < 0) {
+    if (dst_fd < 0)
+    {
         perror("open");
         exit(1);
     }
 
-    if (mode == REPLAY_WRITEONLY) {
-        for (i = hints_start; i < hints_end; i++) {
+    if (mode == REPLAY_WRITEONLY)
+    {
+        for (i = hints_start; i < hints_end; i++)
+        {
             hint = &hints[i];
             blk_size = hint->continuous_blks << BLK_SHIFT;
             p = blk;
             unsigned long end_trace_line =
                 hint->start_trace_line + hint->continuous_blks;
-            for (j = hint->start_trace_line; j < end_trace_line; j++) {
+            for (j = hint->start_trace_line; j < end_trace_line; j++)
+            {
                 info = infos_map[j];
                 fill_blk(p, info->md5, strlen(info->md5), rand_gener);
                 p += BLK_SIZE;
@@ -320,56 +419,68 @@ void *replay_worker(void *arg) {
             pwrite(dst_fd, blk, blk_size, infos_map[hint->start_trace_line]->ofs);
         }
     }
-    else if (mode == REPLAY_APPEND) {
-        for (i = hints_start; i < hints_end; i++) {
+    else if (mode == REPLAY_APPEND)
+    {
+        for (i = hints_start; i < hints_end; i++)
+        {
             hint = &hints[i];
             blk_size = hint->continuous_blks << BLK_SHIFT;
             p = blk;
             unsigned long end_trace_line =
                 hint->start_trace_line + hint->continuous_blks;
-            for (j = hint->start_trace_line; j < end_trace_line; j++) {
-                info = infos_map[j];    
+            for (j = hint->start_trace_line; j < end_trace_line; j++)
+            {
+                info = infos_map[j];
                 fill_blk(p, info->md5, strlen(info->md5), rand_gener);
                 p += BLK_SIZE;
             }
             write(dst_fd, blk, blk_size);
         }
     }
-    else if (mode == REPLAY_READWRITE) {
-        for (i = hints_start; i < hints_end; i++) {
+    else if (mode == REPLAY_READWRITE)
+    {
+        for (i = hints_start; i < hints_end; i++)
+        {
             hint = &hints[i];
             blk_size = hint->continuous_blks << BLK_SHIFT;
             unsigned long end_trace_line =
                 hint->start_trace_line + hint->continuous_blks;
-            if (hint->rw == 'W') {
+            if (hint->rw == 'W')
+            {
                 p = blk;
-                for (j = hint->start_trace_line; j < end_trace_line; j++) {
-                    info = infos_map[j];    
+                for (j = hint->start_trace_line; j < end_trace_line; j++)
+                {
+                    info = infos_map[j];
                     fill_blk(p, info->md5, strlen(info->md5), rand_gener);
                     p += BLK_SIZE;
                 }
                 pwrite(dst_fd, blk, blk_size, infos_map[hint->start_trace_line]->ofs);
             }
-            else {
+            else
+            {
                 pread(dst_fd, blk, blk_size, infos_map[hint->start_trace_line]->ofs);
-                if (is_dump_read) {
+                if (is_dump_read)
+                {
                     fwrite(blk, 1, blk_size, drfp);
                 }
             }
         }
     }
-    
+
     close(dst_fd);
 }
 
-void check_param_per_worker(replay_param_t *param, int thread) {
+void check_param_per_worker(replay_param_t *param, int thread)
+{
     unsigned long i;
     unsigned long hints_start = param->hints_start;
     unsigned long hints_end = param->hints_end;
     struct trace_replay_hint *hints = param->hints;
 
-    for (i = hints_start; i < hints_end; i++) {
-        if (hints[i].continuous_blks == 0) {
+    for (i = hints_start; i < hints_end; i++)
+    {
+        if (hints[i].continuous_blks == 0)
+        {
             printf("error: continuous_blks is 0\n");
             exit(1);
         }
@@ -377,16 +488,19 @@ void check_param_per_worker(replay_param_t *param, int thread) {
     }
 }
 
-void build_trace_containers(hashmap *map, struct trace_info *infos, unsigned long valid_lines) {
+void build_trace_containers(hashmap *map, struct trace_info *infos, unsigned long valid_lines)
+{
     unsigned long i;
     struct trace_info *info;
     struct trace_container *ptc;
     bool not_null;
 
-    for (i = 0; i < valid_lines; i++) {
+    for (i = 0; i < valid_lines; i++)
+    {
         info = &infos[i];
         not_null = hashmap_get(map, &info->lba, sizeof(unsigned long *), (uintptr_t *)&ptc);
-        if (!not_null) {
+        if (!not_null)
+        {
             ptc = trace_container_create(DEFAULT_COLLECTIONS_CAPACITY, &info->lba);
             hashmap_set(map, &info->lba, sizeof(unsigned long *), (uintptr_t)ptc);
         }
@@ -394,22 +508,24 @@ void build_trace_containers(hashmap *map, struct trace_info *infos, unsigned lon
     }
 }
 
-int trace_container_cmp(const void *a, const void *b) {
+int trace_container_cmp(const void *a, const void *b)
+{
     unsigned long lba_a = *((unsigned long *)a);
     unsigned long lba_b = *((unsigned long *)b);
-    return lba_a - lba_b; 
+    return lba_a - lba_b;
 }
 
 /* TODO: multithread assign */
-void assign_params_per_worker(hashmap *map, unsigned long valid_lines, 
+void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
                               struct trace_replay_hint *hints,
-                              replay_param_t *params) {
+                              replay_param_t *params)
+{
 
     replay_param_t *param;
     unsigned long start_line = 0;
     unsigned long per_thread_lines = valid_lines / threads;
     int cur_thread = 0;
-    unsigned long cur_thread_lines = 0; 
+    unsigned long cur_thread_lines = 0;
     int probability_assign_current = 0;
     struct trace_container *tc;
     unsigned long i, j;
@@ -418,18 +534,23 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
     unsigned long hints_start = 0;
     struct bucket *b;
 
-    for (i = 0; i < threads; i++) {
+    for (i = 0; i < threads; i++)
+    {
         param = &params[i];
         param->tc = trace_container_create(DEFAULT_COLLECTIONS_CAPACITY, &param->worker_id);
     }
 
     hashmap_sort(map, trace_container_cmp);
-    foreach_hashmap_bucket(map, b) {
+    foreach_hashmap_bucket(map, b)
+    {
         struct trace_container *_tc = (struct trace_container *)b->value;
-        if (cur_thread != threads - 1) {
-            if (_tc->size + cur_thread_lines > per_thread_lines) {
+        if (cur_thread != threads - 1)
+        {
+            if (_tc->size + cur_thread_lines > per_thread_lines)
+            {
                 probability_assign_current = (per_thread_lines - cur_thread_lines) * 100 / _tc->size;
-                if (rand() % 100 < probability_assign_current) {
+                if (rand() % 100 < probability_assign_current)
+                {
                     cur_thread++;
                     cur_thread_lines = 0;
                 }
@@ -440,16 +561,25 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
         trace_container_add_collection(tc, _tc);
         cur_thread_lines += _tc->size;
         trace_container_destroy(_tc);
-        
-        if (cur_thread_lines >= per_thread_lines) {
-            cur_thread++;
-            cur_thread_lines = 0;
+        if (cur_thread != threads - 1) {
+            if (cur_thread_lines >= per_thread_lines)
+            {
+                cur_thread++;
+                cur_thread_lines = 0;
+            }
         }
     }
-
     
-    for (int i = 0; i < threads; i++) {
+    for (int i = 0; i < threads; i++)
+    {
         tc = params[i].tc;
+        printf("\tworker %d: %d traces\n", i, tc->size);
+    }
+
+    for (int i = 0; i < threads; i++)
+    {
+        tc = params[i].tc;
+        printf("\tassign traces to worker %d...\n", i);
         trace_container_sort_infomap_by_ts(tc);
         unsigned long _max_continuous_4K_blks = 0;
         unsigned long per_thread_start = 0;
@@ -458,20 +588,25 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
         hints_start = hints_idx;
 
         /* extract consecutive  blks per thread*/
-        for (j = per_thread_start + 1; j < per_thread_end; j++) {
+        for (j = per_thread_start + 1; j < per_thread_end; j++)
+        {
             struct trace_info *info = tc->infos_map[j];
             struct trace_info *pre = tc->infos_map[j - 1];
-            if (info->lba - pre->lba == 8 && 
+            if (info->lba - pre->lba == 8 &&
                 info->rw == pre->rw &&
-                (j - consecutive_start) < max_continuous_4K_blks) {
+                (j - consecutive_start) < max_continuous_4K_blks)
+            {
                 continue;
-            } else {
+            }
+            else
+            {
                 /* save hints */
                 hint = &hints[hints_idx++];
                 hint->continuous_blks = j - consecutive_start;
                 hint->start_trace_line = consecutive_start;
                 hint->rw = tc->infos_map[consecutive_start]->rw;
-                if (hint->continuous_blks > _max_continuous_4K_blks) {
+                if (hint->continuous_blks > _max_continuous_4K_blks)
+                {
                     _max_continuous_4K_blks = hint->continuous_blks;
                 }
                 /* reset state */
@@ -482,7 +617,8 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
         hint->continuous_blks = per_thread_end - consecutive_start;
         hint->start_trace_line = consecutive_start;
         hint->rw = tc->infos_map[consecutive_start]->rw;
-        if (hint->continuous_blks > _max_continuous_4K_blks) {
+        if (hint->continuous_blks > _max_continuous_4K_blks)
+        {
             _max_continuous_4K_blks = hint->continuous_blks;
         }
         /* assign param */
@@ -497,28 +633,32 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
         param->mode = mode;
         switch (rand_gener_type)
         {
-        case RANDOM_MT19937AR: {
+        case RANDOM_MT19937AR:
+        {
             struct mt19937ar_state *ctx = (struct mt19937ar_state *)malloc(sizeof(struct mt19937ar_state));
             rand_gener->ctx = ctx;
             rand_gener->fedseed = mt19937ar_seed_wrapper;
             rand_gener->genrandom = mt19937ar_gen_wrapper;
             break;
         }
-        case RANDOM_STDLIB: {
-            int *ctx = (int *)malloc(sizeof(int)); 
+        case RANDOM_STDLIB:
+        {
+            int *ctx = (int *)malloc(sizeof(int));
             rand_gener->ctx = ctx;
             rand_gener->fedseed = stdlib_seed_wrapper;
             rand_gener->genrandom = stdlib_gen_wrapper;
             break;
         }
-        case RANDOM_LCG: {
-            int *ctx = (int *)malloc(sizeof(int)); 
+        case RANDOM_LCG:
+        {
+            int *ctx = (int *)malloc(sizeof(int));
             rand_gener->ctx = ctx;
             rand_gener->fedseed = lcg_seed_wrapper;
             rand_gener->genrandom = lcg_gen_wrapper;
             break;
         }
-        case RANDOM_NULL: {
+        case RANDOM_NULL:
+        {
             rand_gener->ctx = NULL;
             rand_gener->fedseed = NULL;
             rand_gener->genrandom = NULL;
@@ -527,42 +667,50 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
         default:
             break;
         }
-        param->rand_gener = rand_gener; 
+        param->rand_gener = rand_gener;
         DEBUG_INFO(verbose, check_param_per_worker(param, i));
     }
 }
 
-unsigned long parse_trace_info(FILE *src_fp, struct trace_info **infos, int mode) {
+unsigned long parse_trace_info(FILE *src_fp, struct trace_info **infos, int mode)
+{
     char line[LINE_SIZE];
     char pname[MAX_NAME_LEN];
     unsigned long valid_lines = 0;
     unsigned long i = 0;
     unsigned long lines = 0;
-    
-    while (fgets(line, LINE_SIZE, src_fp)) {
+
+    while (fgets(line, LINE_SIZE, src_fp))
+    {
         lines++;
     }
 
     *infos = (struct trace_info *)malloc(sizeof(struct trace_info) * lines);
-    if (*infos == NULL) {
+    if (*infos == NULL)
+    {
         perror("malloc");
         exit(1);
     }
-    
+
     fseek(src_fp, 0, SEEK_SET);
-    
-    while (fgets(line, LINE_SIZE, src_fp)) {
+
+    while (fgets(line, LINE_SIZE, src_fp))
+    {
         struct trace_info *info = &(*infos)[i];
         /* Strip '\n' */
         line[strlen(line) - 1] = '\0';
-        if (sscanf(line, "%lu %lu %s %lu %lu %c %d %d %s", &info->ts, &info->pid, pname, &info->lba, &info->blks, &info->rw, &info->major, &info->minor, info->md5) == 9) {
-            if (mode == REPLAY_READWRITE) {
+        if (sscanf(line, "%lu %lu %s %lu %lu %c %d %d %s", &info->ts, &info->pid, pname, &info->lba, &info->blks, &info->rw, &info->major, &info->minor, info->md5) == 9)
+        {
+            if (mode == REPLAY_READWRITE)
+            {
                 info->ofs = info->lba << 9;
                 valid_lines++;
                 i++;
             }
-            else if (mode == REPLAY_WRITEONLY || mode == REPLAY_APPEND) {
-                if (info->rw == 'W') {
+            else if (mode == REPLAY_WRITEONLY || mode == REPLAY_APPEND)
+            {
+                if (info->rw == 'W')
+                {
                     info->ofs = info->lba << 9;
                     valid_lines++;
                     i++;
@@ -575,53 +723,72 @@ unsigned long parse_trace_info(FILE *src_fp, struct trace_info **infos, int mode
 
 int main(int argc, char **argv)
 {
-	char *optstring = "f:d:o:g:t:c:vhm:r:"; 
-	int opt;
+    char *optstring = "f:d:o:g:t:c:vhm:r:";
+    int opt;
     FILE *src_fp;
-	char filepath[MAX_NAME_LEN] = {0};
+    char filepath[MAX_NAME_LEN] = {0};
     char mode_str[MAX_NAME_LEN] = {0};
     char tmp_str[MAX_NAME_LEN] = {0};
-	uint64_t start, end;
+    uint64_t start, end;
     unsigned long size_in_total = 0;
     unsigned long blks_start;
     unsigned long blks_end;
     uint64_t time_usage = 0;
 
-	while ((opt = getopt(argc, argv, optstring)) != -1) {
-		switch(opt) {
-		case 'f':
-			strcpy(filepath, optarg);
-			break;
-		case 'd': 
-			strcpy(dstpath, optarg);
-            if (dstpath[strlen(dstpath) - 1] != '/') {
+    while ((opt = getopt(argc, argv, optstring)) != -1)
+    {
+        switch (opt)
+        {
+        case 'f':
+            strcpy(filepath, optarg);
+            break;
+        case 'd':
+            strcpy(dstpath, optarg);
+            if (dstpath[strlen(dstpath) - 1] != '/')
+            {
                 strcat(dstpath, "/");
             }
-			break;
+            break;
         case 'o':
             strcpy(mode_str, optarg);
-            if (strcmp(mode_str, "w") == 0) {
+            if (strcmp(mode_str, "w") == 0)
+            {
                 mode = REPLAY_WRITEONLY;
-            } else if (strcmp(mode_str, "rw") == 0) {
+            }
+            else if (strcmp(mode_str, "rw") == 0)
+            {
                 mode = REPLAY_READWRITE;
-            } else if (strcmp(mode_str, "a") == 0) {
+            }
+            else if (strcmp(mode_str, "a") == 0)
+            {
                 mode = REPLAY_APPEND;
-            } else {
+            }
+            else
+            {
                 usage();
                 return -1;
             }
             break;
         case 'g':
             strcpy(tmp_str, optarg);
-            if (strcmp(tmp_str, "mt19937ar") == 0) {
+            if (strcmp(tmp_str, "mt19937ar") == 0)
+            {
                 rand_gener_type = RANDOM_MT19937AR;
-            } else if (strcmp(tmp_str, "rand") == 0) {
+            }
+            else if (strcmp(tmp_str, "rand") == 0)
+            {
                 rand_gener_type = RANDOM_STDLIB;
-            } else if (strcmp(tmp_str, "lcg") == 0) {
+            }
+            else if (strcmp(tmp_str, "lcg") == 0)
+            {
                 rand_gener_type = RANDOM_LCG;
-            } else if (strcmp(tmp_str, "null") == 0) {
+            }
+            else if (strcmp(tmp_str, "null") == 0)
+            {
                 rand_gener_type = RANDOM_NULL;
-            } else {
+            }
+            else
+            {
                 usage();
                 return -1;
             }
@@ -637,9 +804,12 @@ int main(int argc, char **argv)
             break;
         case 'm':
             strcpy(tmp_str, optarg);
-            if (strcmp(tmp_str, "fiu") == 0) {
+            if (strcmp(tmp_str, "fiu") == 0)
+            {
                 trace_format_type = REPLAY_FIU;
-            } else {
+            }
+            else
+            {
                 usage();
                 return -1;
             }
@@ -648,37 +818,42 @@ int main(int argc, char **argv)
             is_dump_read = 1;
             strcpy(dump_read_path, optarg);
             break;
-		case 'h':
-			usage();
-			exit(1);
-		default:
-			printf("Bad usage!\n");
-			usage();
-			exit(1);
-		}
-	}
-    
-    if (strlen(filepath) == 0) {
+        case 'h':
+            usage();
+            exit(1);
+        default:
+            printf("Bad usage!\n");
+            usage();
+            exit(1);
+        }
+    }
+
+    if (strlen(filepath) == 0)
+    {
         printf("Please specify the blkparse file\n");
         usage();
         exit(1);
     }
 
-    if (strlen(dstpath) == 0) {
+    if (strlen(dstpath) == 0)
+    {
         printf("Please specify the destination file path\n");
         usage();
         exit(1);
     }
 
     src_fp = fopen(filepath, "r");
-    if (src_fp == NULL) {
+    if (src_fp == NULL)
+    {
         perror("open");
         exit(1);
     }
 
-    if (is_dump_read) {
+    if (is_dump_read)
+    {
         drfp = fopen(dump_read_path, "w");
-        if (drfp == NULL) {
+        if (drfp == NULL)
+        {
             perror("open read dump file");
             exit(1);
         }
@@ -688,10 +863,10 @@ int main(int argc, char **argv)
     unsigned long valid_lines = 0;
     struct trace_info *infos;
 
-    printf("Start parsing trace file...\n");    
+    printf("Start parsing trace file...\n");
     valid_lines = parse_trace_info(src_fp, &infos, mode);
-    
-    printf("Start building per thread param...\n");    
+
+    printf("Start building per thread param...\n");
     hashmap *map = hashmap_create();
     replay_param_t *params = (replay_param_t *)malloc(sizeof(replay_param_t) * threads);
     replay_param_t *param;
@@ -700,57 +875,65 @@ int main(int argc, char **argv)
     build_trace_containers(map, infos, valid_lines);
     assign_params_per_worker(map, valid_lines, hints, params);
 
-    printf("Start worker...\n");    
+    printf("Start worker...\n");
     pthread_t *tids = (pthread_t *)malloc(threads * sizeof(pthread_t));
     start = timestamp_ns();
-    for (i = 0; i < threads; i++) {
+    for (i = 0; i < threads; i++)
+    {
         param = &params[i];
         pthread_create(&tids[i], NULL, replay_worker, param);
     }
 
     /* wait workers */
-    for (i = 0; i < threads; i++) {
+    for (i = 0; i < threads; i++)
+    {
         pthread_join(tids[i], NULL);
     }
     end = timestamp_ns();
-    printf("Done!\n");    
-    
+    printf("Done!\n");
+
     size_in_total = valid_lines * BLK_SIZE;
     time_usage = get_ns_diff(start, end);
-        
+
 end:
     free(tids);
     free(infos);
     free(hints);
-    for (i = 0; i < threads; i++) {
+    for (i = 0; i < threads; i++)
+    {
         param = &params[i];
-        if (param->rand_gener) {
-            if (param->rand_gener->ctx) {
+        if (param->rand_gener)
+        {
+            if (param->rand_gener->ctx)
+            {
                 free(param->rand_gener->ctx);
             }
             free(param->rand_gener);
         }
-        if (param->buf) {
+        if (param->buf)
+        {
             free(param->buf);
         }
-        if (param->tc) {
+        if (param->tc)
+        {
             trace_container_destroy(param->tc);
         }
     }
     hashmap_free(map);
     free(params);
     fclose(src_fp);
-    if (is_dump_read) {
+    if (is_dump_read)
+    {
         fclose(drfp);
     }
     // printf("Replay time: %.2f ms, Size: %ld MiB, Bandwidth: %.2f MiB/s, \
     //         Write time: %.2f ms, Write Size: %ld MiB, Write Bandwidth: %.2f MiB/s, \
-    //         Read time: %.2f ms, Read Size: %ld MiB, Read Bandwidth: %.2f MiB/s\n", 
+    //         Read time: %.2f ms, Read Size: %ld MiB, Read Bandwidth: %.2f MiB/s\n",
     //         time_usage / 1000.0 / 1000, size_in_total / 1024 / 1024, (size_in_total / 1024 / 1024) / (time_usage / 1000.0 / 1000 / 1000),
     //         write_time_usage / 1000.0 / 1000, write_size_in_total / 1024 / 1024, (write_size_in_total / 1024 / 1024) / (write_time_usage / 1000.0 / 1000 / 1000),
     //         read_time_usage / 1000.0 / 1000, read_size_in_total / 1024 / 1024, (read_size_in_total / 1024 / 1024) / (read_time_usage / 1000.0 / 1000 / 1000)
     //         );
-    printf("Replay time: %.2f ms, Size: %ld MiB, Bandwidth: %.2f MiB/s\n", 
-            time_usage / 1000.0 / 1000, size_in_total / 1024 / 1024, (size_in_total / 1024 / 1024) / (time_usage / 1000.0 / 1000 / 1000));
+    printf("Replay time: %.2f ms, Size: %ld MiB, Bandwidth: %.2f MiB/s\n",
+           time_usage / 1000.0 / 1000, size_in_total / 1024 / 1024, (size_in_total / 1024 / 1024) / (time_usage / 1000.0 / 1000 / 1000));
     return 0;
 }

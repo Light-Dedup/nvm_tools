@@ -226,7 +226,6 @@ void _hashmap_sort(struct bucket* head, struct bucket* end,
     if (head == NULL || head == end)
         return;
 
-    unsigned long pivot;
     struct bucket* p = head->next;
     struct bucket* small = head;
     
