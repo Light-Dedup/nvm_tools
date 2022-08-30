@@ -114,14 +114,10 @@ static inline void fill_blk(char *blk, char *md5, int md5_len, rand_gener_t *ran
     randseed_set_func fedseed = rand_gener->fedseed;
     randint32_gen_func genrandom = rand_gener->genrandom;
     void *ctx = rand_gener->ctx;
-    char *p = blk;
 
     for (int i = 0; i < step; i++, blk += blk_size_per_step, md5 += 32) {
         if (genrandom == NULL) {
             for (int j = 0; j < blk_size_per_step; j += 32) {
-                if (blk + j - p >= BLK_SIZE) {
-                    printf("Error\n");
-                }
                 memcpy(blk + j, md5, 32);
             }
         } else {
