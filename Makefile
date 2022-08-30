@@ -1,6 +1,6 @@
 CFLAGS := -O3
 
-TARGETS := get_sum toG to_MiB_s exhaust_nvmm write_1G create_files to_nsec aging_system shuffle_and_write replay
+TARGETS := get_sum toG to_MiB_s exhaust_nvmm write_1G create_files to_nsec aging_system shuffle_and_write replay replay_static
 
 all: ${TARGETS}
 
@@ -26,7 +26,10 @@ shuffle_and_write: helper/shuffle_and_write.c helper/mt19937ar.o
 	gcc $^ -O3 -o $@
 
 replay: helper/replay.c helper/mt19937ar.o helper/lcg.o helper/map.o 
-	gcc $^ -O3 -o $@ -lpthread
+	gcc $^ -g -o $@ -lpthread
+
+replay_static: helper/replay.c helper/mt19937ar.o helper/lcg.o helper/map.o 
+	gcc $^ -static -O3 -o $@ -lpthread
 	
 %: helper/%.c
 	gcc $^ -O3 -o $@

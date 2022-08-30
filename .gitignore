@@ -10,4 +10,4 @@ aging_system
 *.out
 *.o
 *.log
-
+collect_trace/file_tracer

@@ -114,10 +114,14 @@ static inline void fill_blk(char *blk, char *md5, int md5_len, rand_gener_t *ran
     randseed_set_func fedseed = rand_gener->fedseed;
     randint32_gen_func genrandom = rand_gener->genrandom;
     void *ctx = rand_gener->ctx;
+    char *p = blk;
 
     for (int i = 0; i < step; i++, blk += blk_size_per_step, md5 += 32) {
         if (genrandom == NULL) {
             for (int j = 0; j < blk_size_per_step; j += 32) {
+                if (blk + j - p >= BLK_SIZE) {
+                    printf("Error\n");
+                }
                 memcpy(blk + j, md5, 32);
             }
         } else {
@@ -400,6 +404,7 @@ int trace_container_cmp(const void *a, const void *b) {
     return lba_a - lba_b; 
 }
 
+/* TODO: multithread assign */
 void assign_params_per_worker(hashmap *map, unsigned long valid_lines, 
                               struct trace_replay_hint *hints,
                               replay_param_t *params) {
@@ -469,7 +474,7 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
                 hint = &hints[hints_idx++];
                 hint->continuous_blks = j - consecutive_start;
                 hint->start_trace_line = consecutive_start;
-                hint->rw = tc->infos_map[per_thread_start]->rw;
+                hint->rw = tc->infos_map[consecutive_start]->rw;
                 if (hint->continuous_blks > _max_continuous_4K_blks) {
                     _max_continuous_4K_blks = hint->continuous_blks;
                 }
@@ -480,7 +485,7 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
         hint = &hints[hints_idx++];
         hint->continuous_blks = per_thread_end - consecutive_start;
         hint->start_trace_line = consecutive_start;
-        hint->rw = tc->infos_map[per_thread_start]->rw;
+        hint->rw = tc->infos_map[consecutive_start]->rw;
         if (hint->continuous_blks > _max_continuous_4K_blks) {
             _max_continuous_4K_blks = hint->continuous_blks;
         }
@@ -686,9 +691,11 @@ int main(int argc, char **argv)
     int i;
     unsigned long valid_lines = 0;
     struct trace_info *infos;
-    
+
+    printf("Start parsing trace file...\n");    
     valid_lines = parse_trace_info(src_fp, &infos, mode);
     
+    printf("Start building per thread param...\n");    
     hashmap *map = hashmap_create();
     replay_param_t *params = (replay_param_t *)malloc(sizeof(replay_param_t) * threads);
     replay_param_t *param;
@@ -697,6 +704,7 @@ int main(int argc, char **argv)
     build_trace_containers(map, infos, valid_lines);
     assign_params_per_worker(map, valid_lines, hints, params);
 
+    printf("Start worker...\n");    
     pthread_t *tids = (pthread_t *)malloc(threads * sizeof(pthread_t));
     start = timestamp_ns();
     for (i = 0; i < threads; i++) {
@@ -709,6 +717,7 @@ int main(int argc, char **argv)
         pthread_join(tids[i], NULL);
     }
     end = timestamp_ns();
+    printf("Done!\n");    
     
     size_in_total = valid_lines * BLK_SIZE;
     time_usage = get_ns_diff(start, end);
@@ -724,9 +733,13 @@ end:
                 free(param->rand_gener->ctx);
             }
             free(param->rand_gener);
+        }
+        if (param->buf) {
             free(param->buf);
         }
-        trace_container_destroy(param->tc);
+        if (param->tc) {
+            trace_container_destroy(param->tc);
+        }
     }
     hashmap_free(map);
     free(params);
