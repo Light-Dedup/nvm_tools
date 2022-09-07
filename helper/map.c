@@ -7,7 +7,7 @@
 #include "map.h"
 #include <stdlib.h>
 #include <string.h>
-//#include <stdio.h>
+#include <stdio.h>
 
 #define HASHMAP_DEFAULT_CAPACITY 20
 #define HASHMAP_MAX_LOAD 0.75f
@@ -221,8 +221,8 @@ void _hashmap_swap_bucket(struct bucket* a, struct bucket* b)
     b->value = tmp.value;
 }
 
-void _hashmap_sort(struct bucket* head, struct bucket* end, 
-                   compare cmp_func) {
+void _hashmap_qsort(struct bucket* head, struct bucket* end, 
+                    compare cmp_func) {
     if (head == NULL || head == end)
         return;
 
@@ -237,12 +237,111 @@ void _hashmap_sort(struct bucket* head, struct bucket* end,
         p = p->next;
     }
     _hashmap_swap_bucket(head, small);
-    _hashmap_sort(head, small, cmp_func);
-    _hashmap_sort(small->next, end, cmp_func);
+    _hashmap_qsort(head, small, cmp_func);
+    _hashmap_qsort(small->next, end, cmp_func);
+}
+
+void check_bucket(struct bucket* entry) {
+	int n = 0;
+	while (entry != NULL)
+    {   
+		n++;
+        printf("%ld\n", *((unsigned long *)entry->key));
+        entry = entry->next;
+    }
+	printf("n of entries = %d\n", n);
+}
+
+void _hashmap_merge(struct bucket** start1, struct bucket** end1,
+           			struct bucket** start2, struct bucket** end2,
+					compare cmp_func)
+{
+ 
+    // Making sure that first node of second
+    // list is higher.
+    struct bucket* temp = NULL;
+    if (cmp_func((*start1)->key, (*start2)->key) > 0) {
+        _hashmap_swap_bucket(*start1, *start2);
+        _hashmap_swap_bucket(*end1, *end2);
+    }
+ 
+    // Merging remaining nodes
+    struct bucket* astart = *start1, *aend = *end1;
+    struct bucket* bstart = *start2, *bend = *end2;
+    struct bucket* bendnext = (*end2)->next;
+    while (astart != aend && bstart != bendnext) {
+		if (cmp_func(astart->next->key, bstart->key) > 0 ) {
+        // if (astart->next->data > bstart->data) {
+            temp = bstart->next;
+            bstart->next = astart->next;
+            astart->next = bstart;
+            bstart = temp;
+        }
+        astart = astart->next;
+    }
+    if (astart == aend)
+        astart->next = bstart;
+    else
+        *end2 = *end1;
+}
+ 
+void _hashmap_msort(struct bucket** head, int len,
+					compare cmp_func)
+{
+    if (*head == NULL)
+        return;
+    struct bucket* start1 = NULL, *end1 = NULL;
+    struct bucket* start2 = NULL, *end2 = NULL;
+    struct bucket* prevend = NULL;
+    // int len = length(*head);
+ 
+    for (int gap = 1; gap < len; gap = gap*2) {
+        start1 = *head;
+        while (start1) {
+ 
+            // If this is first iteration
+            bool isFirstIter = 0;
+            if (start1 == *head)
+                isFirstIter = 1;
+ 
+            // First part for merging
+            int counter = gap;
+            end1 = start1;
+            while (--counter && end1->next)
+                end1 = end1->next;
+ 
+            // Second part for merging
+            start2 = end1->next;
+            if (!start2)
+                break;
+            counter = gap;
+            end2 = start2;
+            while (--counter && end2->next)
+                end2 = end2->next;
+ 
+            // To store for next iteration.
+            struct bucket *temp = end2->next;
+ 
+            // Merging two parts.
+            _hashmap_merge(&start1, &end1, &start2, &end2, cmp_func);
+ 
+            // Update head for first iteration, else
+            // append after previous list
+            if (isFirstIter)
+                *head = start1;
+            else
+                prevend->next = start1;
+ 
+            prevend = end2;
+            start1 = temp;
+        }
+        prevend->next = start1;
+    }
 }
 
 void hashmap_sort(hashmap* m, compare cmp_func) {
-    _hashmap_sort(m->first, m->last, cmp_func);
+    // _hashmap_qsort(m->first, m->last, cmp_func);
+	_hashmap_msort(&m->first, m->count, cmp_func);
 }
 
 bool hashmap_get_set(hashmap* m, void* key, size_t ksize, uintptr_t* out_in)
