@@ -26,7 +26,7 @@ shuffle_and_write: helper/shuffle_and_write.c helper/mt19937ar.o
 	gcc $^ -O3 -o $@
 
 replay: helper/replay.c helper/mt19937ar.o helper/lcg.o helper/map.o 
-	gcc $^ -g -o $@ -lpthread
+	gcc $^ -O3 -g -o $@ -lpthread
 
 replay_static: helper/replay.c helper/mt19937ar.o helper/lcg.o helper/map.o 
 	gcc $^ -static -O3 -o $@ -lpthread

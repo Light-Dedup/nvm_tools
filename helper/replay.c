@@ -58,7 +58,7 @@ int verbose = 0;
 
 void usage()
 {
-    printf("Replay file parsed by blkparse written by deadpool\n");
+    printf("Replay file parsed by blkparse written by deadpool. v0.1\n");
     printf("Description: tools to help reply traces under different threads\n");
     printf("-f trace                        <trace filename>\n");
     printf("-d dstpath                      <dst directory to replay>\n");
