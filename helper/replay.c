@@ -18,7 +18,7 @@
 #define PRIszt "zu"
 // Windows is "Iu"
 #endif
-
+#define MAX_THREADS  512
 #define MAX_NAME_LEN 256
 
 #define REPLAY_WRITEONLY 1
@@ -50,7 +50,6 @@ int trace_format_type = REPLAY_FIU;
 /* dump read related */
 char dump_read_path[MAX_NAME_LEN] = {0};
 int is_dump_read = 0;
-FILE *drfp;
 /* miscs */
 unsigned long max_continuous_4K_blks = 1; // 4KiB as default
 int threads = 1;
@@ -67,10 +66,10 @@ void usage()
     printf("-t threads                      <threads #., default is 1>\n");
     printf("-c blks                         <largest continuous blks, default is 1>\n");
     printf("-m [fiu|]                       <trace file format, default is fiu>\n");
-    printf("-r path                         <dump read content into file path, for debug purpose>\n");
+    printf("-r path                         <dump read content into directory, for debug purpose>\n");
     printf("-v                              <enable verbose?>\n");
     printf("Basic Usage:   ./replay -f homes-sample.blkparse -d /mnt/pmem0/ -o rw -g null -t 1 -c 1\n");
-    printf("Advance Usage: ./replay -f homes-sample.blkparse -d /mnt/pmem0/ -o rw -g null -t 1 -c 1 -r ./read_content -m fiu -v\n");
+    printf("Advance Usage: ./replay -f homes-sample.blkparse -d /mnt/pmem0/ -o rw -g null -t 1 -c 1 -r /mnt/tmp1/ -m fiu -v\n");
     printf("Simple Usage:  ./replay -f homes-sample.blkparse -d /mnt/pmem0/\n");
 }
 
@@ -349,6 +348,7 @@ typedef struct
     unsigned long hints_end;
     char *buf;
     char dstfilepath[MAX_NAME_LEN];
+    char drfilepath[MAX_NAME_LEN];
     int worker_id;
     rand_gener_t *rand_gener;
     int mode;
@@ -371,6 +371,17 @@ void *replay_worker(void *arg)
     char *p = blk;
     unsigned long blk_size = 0;
     rand_gener_t *rand_gener = param->rand_gener;
+    FILE *drfp;
+    
+    if (is_dump_read)
+    {
+        drfp = fopen(param->drfilepath, "w");
+        if (drfp == NULL)
+        {
+            printf("open dump file %s failed\n", param->drfilepath);
+            exit(1);
+        }
+    }
 
     if (access(dstpath, F_OK) == 0)
     {
@@ -466,7 +477,10 @@ void *replay_worker(void *arg)
             }
         }
     }
-
+    if (is_dump_read)
+    {
+        fclose(drfp);
+    }
     close(dst_fd);
 }
 
@@ -629,6 +643,10 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
         param->buf = (char *)malloc(_max_continuous_4K_blks * BLK_SIZE);
         memcpy(param->dstfilepath, dstpath, strlen(dstpath));
         sprintf(param->dstfilepath + strlen(dstpath), "trace_%d", i);
+        if (is_dump_read) {
+            memcpy(param->drfilepath, dump_read_path, strlen(dump_read_path));
+            sprintf(param->drfilepath + strlen(dump_read_path), "dump_read_%d", i);
+        }
         rand_gener_t *rand_gener = (rand_gener_t *)malloc(sizeof(rand_gener_t));
         param->mode = mode;
         switch (rand_gener_type)
@@ -817,6 +835,11 @@ int main(int argc, char **argv)
         case 'r':
             is_dump_read = 1;
             strcpy(dump_read_path, optarg);
+            if (dump_read_path[strlen(dump_read_path) - 1] != '/')
+            {
+                strcat(dump_read_path, "/");
+            }
+            DEBUG_INFO(verbose, printf("Set dump directory to: %s\n"));
             break;
         case 'h':
             usage();
@@ -849,14 +872,10 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    if (is_dump_read)
+    if (threads > MAX_THREADS)
     {
-        drfp = fopen(dump_read_path, "w");
-        if (drfp == NULL)
-        {
-            perror("open read dump file");
-            exit(1);
-        }
+        printf("Too many threads, max is %d\n", MAX_THREADS);
+        exit(1);
     }
 
     int i;
@@ -922,10 +941,6 @@ end:
     hashmap_free(map);
     free(params);
     fclose(src_fp);
-    if (is_dump_read)
-    {
-        fclose(drfp);
-    }
     // printf("Replay time: %.2f ms, Size: %ld MiB, Bandwidth: %.2f MiB/s, \
     //         Write time: %.2f ms, Write Size: %ld MiB, Write Bandwidth: %.2f MiB/s, \
     //         Read time: %.2f ms, Read Size: %ld MiB, Read Bandwidth: %.2f MiB/s\n",
