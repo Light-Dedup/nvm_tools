@@ -1,7 +1,7 @@
 set -e
 if [ ! $3 ]; then
 	echo Usage: $0 num_of_threads size duplicate_percentage [block_size]
-	exit
+	exit 1
 fi
 make
 bash mkstdfile.sh $*
