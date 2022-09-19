@@ -427,7 +427,10 @@ void *replay_worker(void *arg)
                 fill_blk(p, info->md5, strlen(info->md5), rand_gener);
                 p += BLK_SIZE;
             }
-            pwrite(dst_fd, blk, blk_size, infos_map[hint->start_trace_line]->ofs);
+            if (pwrite(dst_fd, blk, blk_size,
+                    infos_map[hint->start_trace_line]->ofs) < 0) {
+                perror("pwrite");
+            }
         }
     }
     else if (mode == REPLAY_APPEND)
@@ -445,7 +448,9 @@ void *replay_worker(void *arg)
                 fill_blk(p, info->md5, strlen(info->md5), rand_gener);
                 p += BLK_SIZE;
             }
-            write(dst_fd, blk, blk_size);
+            if (write(dst_fd, blk, blk_size) < 0) {
+                perror("write");
+            }
         }
     }
     else if (mode == REPLAY_READWRITE)
@@ -465,7 +470,10 @@ void *replay_worker(void *arg)
                     fill_blk(p, info->md5, strlen(info->md5), rand_gener);
                     p += BLK_SIZE;
                 }
-                pwrite(dst_fd, blk, blk_size, infos_map[hint->start_trace_line]->ofs);
+                if (pwrite(dst_fd, blk, blk_size,
+                        infos_map[hint->start_trace_line]->ofs) < 0) {
+                    perror("pwrite");
+                }
             }
             else
             {
