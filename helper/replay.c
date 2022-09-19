@@ -354,6 +354,17 @@ typedef struct
     int mode;
 } replay_param_t;
 
+static inline void check_ret(int ret, int expected, const char *msg) {
+    if (ret == expected)
+        return;
+    if (ret == -1) {
+        perror(msg);
+    } else {
+        printf("%s returns %d. %d expected\n", msg, ret, expected);
+    }
+    exit(1);
+}
+
 void *replay_worker(void *arg)
 {
     replay_param_t *param = (replay_param_t *)arg;
@@ -372,6 +383,7 @@ void *replay_worker(void *arg)
     unsigned long blk_size = 0;
     rand_gener_t *rand_gener = param->rand_gener;
     FILE *drfp;
+    ssize_t ret;
     
     if (is_dump_read)
     {
@@ -427,10 +439,9 @@ void *replay_worker(void *arg)
                 fill_blk(p, info->md5, strlen(info->md5), rand_gener);
                 p += BLK_SIZE;
             }
-            if (pwrite(dst_fd, blk, blk_size,
-                    infos_map[hint->start_trace_line]->ofs) < 0) {
-                perror("pwrite");
-            }
+            ret = pwrite(dst_fd, blk, blk_size,
+                    infos_map[hint->start_trace_line]->ofs);
+            check_ret(ret, blk_size, "pwrite");
         }
     }
     else if (mode == REPLAY_APPEND)
@@ -448,9 +459,8 @@ void *replay_worker(void *arg)
                 fill_blk(p, info->md5, strlen(info->md5), rand_gener);
                 p += BLK_SIZE;
             }
-            if (write(dst_fd, blk, blk_size) < 0) {
-                perror("write");
-            }
+            ret = write(dst_fd, blk, blk_size);
+            check_ret(ret, blk_size, "write");
         }
     }
     else if (mode == REPLAY_READWRITE)
@@ -470,14 +480,25 @@ void *replay_worker(void *arg)
                     fill_blk(p, info->md5, strlen(info->md5), rand_gener);
                     p += BLK_SIZE;
                 }
-                if (pwrite(dst_fd, blk, blk_size,
-                        infos_map[hint->start_trace_line]->ofs) < 0) {
-                    perror("pwrite");
-                }
+                ret = pwrite(dst_fd, blk, blk_size,
+                        infos_map[hint->start_trace_line]->ofs);
+                check_ret(ret, blk_size, "pwrite");
             }
             else
             {
-                pread(dst_fd, blk, blk_size, infos_map[hint->start_trace_line]->ofs);
+                ssize_t done = 0;
+                while (done != blk_size) {
+                    ret = pread(dst_fd, blk + done, blk_size - done,
+                        infos_map[hint->start_trace_line]->ofs + done);
+                    if (ret == -1) {
+                        perror("pread");
+                        exit(1);
+                    }
+                    if (ret == 0)
+                        break;
+                    done += ret;
+                }
+                memset(blk + done, 0, blk_size - done);
                 if (is_dump_read)
                 {
                     fwrite(blk, 1, blk_size, drfp);
