@@ -5,7 +5,7 @@ set -e
 FILE_SYSTEMS=( "Light-Dedup" )
 SETUPS=( "setup_nova.sh"  )
 BRANCHES=( "master"  )
-JOBS=( 1 2 4 )
+JOBS=( 16 )
 
 echo "Please run in su mode ..."
 
@@ -18,11 +18,11 @@ for job in "${JOBS[@]}"; do
         
         bash "$SETUP" "${BRANCHES[$STEP]}" 0
         mkdir -p /mnt/tmp-"$file_system"/
-        ./replay -f /mnt/sdb/FIU_Traces/homes-110108-112108.1.blkparse -d /mnt/pmem0/ -o rw -g null -t "$job" -c 1 -r /mnt/tmp-"$file_system"/
+        ./replay -f /mnt/sdb/FIU_Traces/webmail+online.cs.fiu.edu-110108-113008.1-21.blkparse -d /mnt/pmem0/ -o rw -g null -t "$job" -c 512 -r /mnt/tmp-"$file_system"/
         
         bash "$SETUP" "original" 0
         mkdir -p /mnt/tmp-original/
-        ./replay -f /mnt/sdb/FIU_Traces/homes-110108-112108.1.blkparse -d /mnt/pmem0/ -o rw -g null -t "$job" -c 1 -r /mnt/tmp-original/
+        ./replay -f /mnt/sdb/FIU_Traces/webmail+online.cs.fiu.edu-110108-113008.1-21.blkparse -d /mnt/pmem0/ -o rw -g null -t "$job" -c 512 -r /mnt/tmp-original/
         
         echo "  Start checking reading content!"
         read_pass=1

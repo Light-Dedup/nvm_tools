@@ -25,6 +25,21 @@ function restore_pmem () {
     cp "/tmp/setups" "$script" -f
 }
 
+function nova_attr_time_stats () {
+    ATTR=$1
+    TARGET_STATS=$2
+    
+    CMD="awk '\$1==\"ATTR:\" {print \$5}' $TARGET_STATS"
+    echo "$CMD" >/tmp/awk_nova_attr_time
+    sed -i "s/ATTR/${ATTR}/g" /tmp/awk_nova_attr_time
+    CMD=$(cat /tmp/awk_nova_attr_time)
+    
+    bash -c "$CMD" >/tmp/awk_nova_attr_time
+    sed -i "s/,//g" /tmp/awk_nova_attr_time
+    cat /tmp/awk_nova_attr_time
+    rm /tmp/awk_nova_attr_time
+}
+
 branch_name=$4
 pmem_id=$7
 
@@ -35,7 +50,7 @@ sudo bash -c "echo $0 $* > /dev/kmsg"
 
 restore_pmem "setup.sh" 
 set_pmem "setup.sh" "pmem0"
-sudo bash setup.sh 0
+sudo bash setup.sh 1
 restore_pmem "setup.sh" 
 
 git checkout -- "setup.sh"
@@ -45,6 +60,9 @@ res1=$(mktemp)
 sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res1
 
 sudo "$ABSPATH"/aging_system -d /mnt/pmem0 -s $5 -o $6 -p 1
+
+cat /proc/fs/NOVA/pmem0/timing_stats > "$ABSPATH"/Newly-"$branch_name"
+newly_dedup_cost=$(nova_attr_time_stats "incr_continuous" "$ABSPATH"/Newly-"$branch_name")   
 
 res2=$(mktemp)
 sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res2
@@ -59,10 +77,17 @@ sudo "$ABSPATH"/aging_system -d /mnt/pmem0 -s $5 -o $6 -p 2
 res1=$(mktemp)
 sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res1
 
+echo 1 > /proc/fs/NOVA/pmem0/timing_stats
+
 sudo "$ABSPATH"/aging_system -d /mnt/pmem0 -s $5 -o $6 -p 3
+
+cat /proc/fs/NOVA/pmem0/timing_stats > "$ABSPATH"/Aging-"$branch_name"
+aging_dedup_cost=$(nova_attr_time_stats "incr_continuous" "$ABSPATH"/Aging-"$branch_name")
 
 res2=$(mktemp)
 sudo ipmctl show -dimm $pmem_id -performance | grep TotalMedia | awk -F= '{print $1,$2}' | sed 's/.*Total//g' > $res2
 paste $res1 $res2 | awk --non-decimal-data '{print $1,($4-$2)*64}'
 rm $res1 $res2
+echo "NewlyDedupCost: $newly_dedup_cost"
+echo "AgingDedupCost: $aging_dedup_cost"
 cd - > /dev/null
