@@ -31,6 +31,7 @@
 #define RANDOM_LCG 3
 
 #define REPLAY_FIU 0
+#define REPLAY_HITSZ 1
 
 #define DEBUG_INFO(verbose, code) \
     if (verbose)                  \
@@ -65,7 +66,7 @@ void usage()
     printf("-g [null|mt19937ar|rand|lcg|]   <random generator, default is null>\n");
     printf("-t threads                      <threads #., default is 1>\n");
     printf("-c blks                         <largest continuous blks, default is 1>\n");
-    printf("-m [fiu|]                       <trace file format, default is fiu>\n");
+    printf("-m [fiu|hitsz|]                 <trace file format, default is fiu>\n");
     printf("-r path                         <dump read content into directory, for debug purpose>\n");
     printf("-v                              <enable verbose?>\n");
     printf("Basic Usage:   ./replay -f homes-sample.blkparse -d /mnt/pmem0/ -o rw -g null -t 1 -c 1\n");
@@ -166,7 +167,11 @@ static inline uint64_t timestamp_ns()
 struct trace_info
 {
     unsigned long ts;
-    unsigned long pid;
+    union 
+    {
+        unsigned long pid;
+        unsigned long fid;
+    };
     unsigned long lba;
     unsigned long ofs;
     unsigned long blks;
@@ -531,6 +536,7 @@ void check_param_per_worker(replay_param_t *param, int thread)
     }
 }
 
+/* gather same lba into the same container */
 void build_trace_containers(hashmap *map, struct trace_info *infos, unsigned long valid_lines)
 {
     unsigned long i;
@@ -583,6 +589,7 @@ void assign_params_per_worker(hashmap *map, unsigned long valid_lines,
         param->tc = trace_container_create(DEFAULT_COLLECTIONS_CAPACITY, &param->worker_id);
     }
 
+    /* sort by lba */
     hashmap_sort(map, trace_container_cmp);
     foreach_hashmap_bucket(map, b)
     {
@@ -746,23 +753,40 @@ unsigned long parse_trace_info(FILE *src_fp, struct trace_info **infos, int mode
         struct trace_info *info = &(*infos)[i];
         /* Strip '\n' */
         line[strlen(line) - 1] = '\0';
-        if (sscanf(line, "%lu %lu %s %lu %lu %c %d %d %s", &info->ts, &info->pid, pname, &info->lba, &info->blks, &info->rw, &info->major, &info->minor, info->md5) == 9)
+
+        switch (trace_format_type)
         {
-            if (mode == REPLAY_READWRITE)
+        case REPLAY_FIU:
+            if (sscanf(line, "%lu %lu %s %lu %lu %c %d %d %s", &info->ts, &info->pid, pname, &info->lba, &info->blks, &info->rw, &info->major, &info->minor, info->md5) == 9)
             {
-                info->ofs = info->lba << 9;
-                valid_lines++;
-                i++;
-            }
-            else if (mode == REPLAY_WRITEONLY || mode == REPLAY_APPEND)
-            {
-                if (info->rw == 'W')
+                if (mode == REPLAY_READWRITE)
                 {
                     info->ofs = info->lba << 9;
                     valid_lines++;
                     i++;
                 }
+                else if (mode == REPLAY_WRITEONLY || mode == REPLAY_APPEND)
+                {
+                    if (info->rw == 'W')
+                    {
+                        info->ofs = info->lba << 9;
+                        valid_lines++;
+                        i++;
+                    }
+                }
             }
+            break;
+        case REPLAY_HITSZ:
+            if (sscanf(line, "%lu %lu %lu %s", &info->ts, &info->fid, &info->lba, info->md5) == 4)
+            {
+                info->rw = 'W';
+                info->blks = 8;     /* 8 512B blocks */
+                info->ofs = info->lba << 9;
+                valid_lines++;
+                i++;
+            }
+        default:
+            break;
         }
     }
     return valid_lines;
@@ -854,6 +878,10 @@ int main(int argc, char **argv)
             if (strcmp(tmp_str, "fiu") == 0)
             {
                 trace_format_type = REPLAY_FIU;
+            }
+            else if (strcmp(tmp_str, "hitsz") == 0)
+            {
+                trace_format_type = REPLAY_HITSZ;
             }
             else
             {
