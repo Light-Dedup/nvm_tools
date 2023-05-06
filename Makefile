@@ -1,6 +1,6 @@
 CFLAGS := -O3
 
-TARGETS := get_sum toG to_MiB_s exhaust_nvmm write_1G create_files to_nsec aging_system shuffle_and_write replay replay_static
+TARGETS := get_sum toG to_MiB_s exhaust_nvmm write_1G create_files to_nsec aging_system shuffle_and_write replay replay_static rw_interference
 
 all: ${TARGETS}
 
