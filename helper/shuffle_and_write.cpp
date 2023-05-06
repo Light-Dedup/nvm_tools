@@ -106,6 +106,7 @@ int main(int argc, char **argv) {
 	diff = 1000000 * (end.tv_sec - start.tv_sec) + end.tv_usec - start.tv_usec;
 	diff /= 1000000;
 	printf("Shuffle and write %ld blocks in %f seconds\n", num_blocks, diff);
+	printf("Bandwidth: %f MiB/s\n", num_blocks * granularity / diff / 1024 / 1024);
 	
 	free(very_large_filebuf);
 	free(map);

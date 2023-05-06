@@ -30,6 +30,9 @@ replay: helper/replay.c helper/mt19937ar.o helper/lcg.o helper/map.o
 
 replay_static: helper/replay.c helper/mt19937ar.o helper/lcg.o helper/map.o 
 	gcc $^ -static -O3 -o $@ -lpthread
+
+rw_interference: helper/rw_interference.cpp 
+	gcc $^ -O3 -o $@ -lpthread -lstdc++
 	
 %: helper/%.c
 	gcc $^ -O3 -o $@
