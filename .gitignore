@@ -11,3 +11,7 @@ aging_system
 *.o
 *.log
 collect_trace/file_tracer
+replay
+replay_static
+rw_interference
+shuffle_and_write

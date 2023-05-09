@@ -11,10 +11,16 @@ cd $tools_dir
 make -j$(nproc)
 bash helper/mkstdfile.sh $*
 cd $nova_dir
-bash $tools_dir/setup/nova.sh $1
+bash $tools_dir/setup/nova.sh $1 1
 cd $tools_dir
 bash helper/fio.sh $2 $3 $4 $5
 
-sudo umount /mnt/pmem$1
-sudo mount -t NOVA -o data_cow /dev/pmem$1 /mnt/pmem$1
-bash helper/cmpstdfile.sh $std_dir /mnt/pmem$1
+sudo mkdir /mnt/pmem$1/0
+sudo mv /mnt/pmem$1/test* /mnt/pmem$1/0/
+
+bash helper/fio.sh $2 $3 $4 $5
+sudo rm -r /mnt/pmem$1/0/
+bash helper/cmpstdfile.sh $std_dir /mnt/pmem$1/
+sudo rm /mnt/pmem$1/*
+sleep 1
+df -h
