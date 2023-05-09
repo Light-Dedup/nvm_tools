@@ -4,7 +4,7 @@ if [[ $# != 2 ]]; then
     exit
 fi
 for file in $(ls $2); do
-	if [ -f $file ]; then
+	if [ -f $2/$file ]; then
 		echo cmp $1/$file $2/$file
 		cmp $1/$file $2/$file
 	fi
