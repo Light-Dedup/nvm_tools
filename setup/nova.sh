@@ -1,5 +1,5 @@
 #!/bin/sh
-
+set -e
 if [ ! $1 ]; then
 	echo Usage: $0 pmem-num [timing]
 	exit 1
@@ -12,9 +12,9 @@ else
 fi
 make -j$(nproc)
 echo umounting...
-sudo umount /mnt/pmem$1
+sudo umount /mnt/pmem$1 || true
 echo Removing the old kernel module...
-sudo rmmod nova
+sudo rmmod nova || true
 echo Inserting the new kernel module...
 sudo insmod nova.ko measure_timing=$timing
 
